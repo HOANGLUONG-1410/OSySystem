@@ -1,0 +1,113 @@
+@inject IConfiguration Configuration
+@{
+    var apiBaseUrl = Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:7055";
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="api-base-url" content="@apiBaseUrl" />
+    <title>@ViewData["Title"] - OSỹ Operations</title>
+
+    <link rel="preconnect" href="https://googleapis.com">
+    <link rel="preconnect" href="https://gstatic.com" crossorigin>
+    <link href="https://googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+
+    <style>
+        body, html, * {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+            letter-spacing: normal !important;
+            text-rendering: optimizeLegibility !important;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            font-variant-ligatures: common-ligatures !important;
+        }
+        em, strong, b, h1, h2, h3 {
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar">
+            <a class="brand" href="/">
+                <img src="~/images/osy-logo.png" alt="Bún Bò Huế OSỹ" />
+                <span>Operations</span>
+            </a>
+
+            <div class="brand-slogan">Hương vị đậm đà<br />Truyền thống vẹn nguyên</div>
+
+            <nav class="side-nav" id="sideNav">
+                <a href="/Admin/Dashboard" data-nav="Dashboard" data-roles="SystemAdmin" style="display:none"><span>◈</span>Tổng quan</a>
+                <a href="/Admin/Inventory" data-nav="Inventory" data-roles="SystemAdmin" style="display:none"><span>▦</span>Kho nguyên liệu</a>
+                <a href="/Admin/Orders" data-nav="Orders" data-roles="SystemAdmin" style="display:none"><span>◫</span>Đơn hàng</a>
+                <a href="/Admin/Transfers" data-nav="Transfers" data-roles="SystemAdmin" style="display:none"><span>⇄</span>Điều chuyển</a>
+                <a href="/Admin/Catalog" data-nav="Catalog" data-roles="SystemAdmin" style="display:none"><span>◇</span>Danh mục</a>
+                <a href="/Admin/ScheduleLogs" data-nav="ScheduleLogs" data-roles="SystemAdmin" style="display:none"><span>♟</span>Lịch làm việc</a>
+                <a href="/KitchenManager/Dashboard" data-nav="Dashboard" data-roles="KitchenManager" style="display:none"><span>◈</span>Tổng quan</a>
+                <a href="/KitchenManager/Inventory" data-nav="Inventory" data-roles="KitchenManager" style="display:none"><span>▦</span>Kho nguyên liệu</a>
+                <a href="/KitchenManager/Transfers" data-nav="Transfers" data-roles="KitchenManager" style="display:none"><span>⇄</span>Điều chuyển</a>
+                <a href="/KitchenManager/Catalog" data-nav="Catalog" data-roles="KitchenManager" style="display:none"><span>◇</span>Danh mục</a>
+                <a href="/BranchManager/Dashboard" data-nav="Dashboard" data-roles="BranchManager" style="display:none"><span>◈</span>Tổng quan</a>
+                <a href="/BranchManager/Personnel" data-nav="Personnel" data-roles="BranchManager" style="display:none"><span>♟</span>Nhân sự</a>
+                <a href="/BranchManager/Transfers" data-nav="Transfers" data-roles="BranchManager" style="display:none"><span>⇄</span>Nhận điều chuyển</a>
+                <a href="/BranchManager/Inventory" data-nav="Inventory" data-roles="BranchManager" style="display:none"><span>▦</span>Kho nguyên liệu</a>
+                <a href="/BranchManager/Orders" data-nav="Orders" data-roles="BranchManager" style="display:none"><span>◫</span>Đơn hàng</a>
+                <a href="/BranchManager/Catalog" data-nav="Catalog" data-roles="BranchManager" style="display:none"><span>◇</span>Danh mục</a>
+                <a href="/BranchManager/Schedule" data-nav="Schedule" data-roles="BranchManager" style="display:none"><span>♟</span>Lịch làm việc</a>
+                <a href="/Staff/Orders" data-nav="Orders" data-roles="Staff" style="display:none"><span>◫</span>Đơn hàng</a>
+                <a href="/Staff/Schedule" data-nav="Schedule" data-roles="Staff" style="display:none"><span>♟</span>Lịch làm việc</a>
+                <a href="/Staff/Inventory" data-nav="Inventory" data-roles="Staff" style="display:none"><span>▦</span>Kho nguyên liệu</a>
+            </nav>
+
+            <div class="sidebar-foot">
+                <div class="quality-pill"><b>NGON</b><span>SẠCH</span><b>NHANH</b></div>
+                <button type="button" class="btn btn-outline-light btn-sm w-100" onclick="OsyAuth.logout()">Đăng xuất</button>
+            </div>
+        </aside>
+
+        <section class="main-panel">
+            <header class="topbar">
+                <button class="menu-toggle" type="button" onclick="document.body.classList.toggle('sidebar-open')">☰</button>
+                <div>
+                    <p class="eyebrow">CÔNG TY TNHH ẨM THỰC NAM BẮC</p>
+                    <h1>@ViewData["Title"]</h1>
+                </div>
+                <div class="user-chip">
+                    <span class="user-avatar" id="currentUserInitial">O</span>
+                    <div><b id="currentUserName">Đang tải...</b><small id="currentUserRole">-</small></div>
+                </div>
+            </header>
+
+            <main class="content-area">
+                <div id="globalAlert"></div>
+                @RenderBody()
+            </main>
+        </section>
+    </div>
+
+    <div class="loading-overlay" id="loadingOverlay"><div class="loader-bowl">♨</div><span>Đang xử lý...</span></div>
+    <div id="toastContainer" class="toast-container"></div>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/api-client.js" asp-append-version="true"></script>
+    <script>
+        OsyAuth.requireLogin();
+        OsyAuth.renderCurrentUser();
+        (function() {
+            var user = OsyAuth.getUser();
+            if (user) {
+                document.querySelectorAll('#sideNav a[data-roles]').forEach(function(el) {
+                    if (el.getAttribute('data-roles').split(',').indexOf(user.role) >= 0) {
+                        el.style.display = '';
+                    }
+                });
+            }
+        })();
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

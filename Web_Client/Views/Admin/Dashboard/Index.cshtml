@@ -1,0 +1,59 @@
+@{
+    ViewData["Title"] = "Tổng quan vận hành";
+}
+<section class="hero-strip">
+    <div>
+        <p class="eyebrow">BÚN BÒ HUẾ OSỸ</p>
+        <h2>Vận hành đồng nhất, <em>chuẩn vị trên toàn hệ thống.</em></h2>
+        <p>Dữ liệu tổng hợp trực tiếp từ Order, Inventory và Transfer API.</p>
+    </div>
+    <img class="hero-bowl" src="~/images/bunbo-bowl.png" alt="Bún bò Huế" />
+</section>
+<div class="metric-grid">
+    <article class="metric-card"><small>Tổng đơn hàng</small><strong id="orderCount">0</strong><span>Trong hệ thống</span></article>
+    <article class="metric-card success"><small>Doanh thu đã xác nhận</small><strong id="revenue">0 ₫</strong><span>Confirmed + Completed</span></article>
+    <article class="metric-card danger"><small>Tồn kho âm</small><strong id="negativeStock">0</strong><span>Cần kiểm tra</span></article>
+    <article class="metric-card"><small>Đang vận chuyển</small><strong id="inTransitCount">0</strong><span>Transfer InTransit</span></article>
+</div>
+<div class="dashboard-grid">
+    <section class="panel">
+        <header class="panel-head"><h3>Đơn hàng gần đây</h3><a href="/Admin/Orders" class="btn btn-sm btn-outline-brand">Mở quản lý đơn</a></header>
+        <div class="table-responsive"><table class="table"><thead><tr><th>Mã</th><th>Chi nhánh</th><th>Trạng thái</th><th>Giá trị</th><th>Thời gian</th></tr></thead><tbody id="recentOrders"></tbody></table></div>
+    </section>
+    <section class="panel">
+        <header class="panel-head"><h3>Cảnh báo kho</h3><a href="/Admin/Inventory" class="btn btn-sm btn-outline-brand">Xem kho</a></header>
+        <div class="panel-body" id="stockWarnings"></div>
+    </section>
+</div>
+<section class="panel">
+    <header class="panel-head"><h3>Luồng nghiệp vụ đang kiểm thử</h3></header>
+    <div class="panel-body row g-3">
+        <div class="col-md-4"><div class="p-3 border h-100"><b>Đơn hàng</b><p class="text-muted mb-0 mt-2">Pending → Confirmed → Completed<br />Pending → Cancelled</p></div></div>
+        <div class="col-md-4"><div class="p-3 border h-100"><b>Điều chuyển</b><p class="text-muted mb-0 mt-2">Draft → InTransit → Received<br />Draft → Cancelled</p></div></div>
+        <div class="col-md-4"><div class="p-3 border h-100"><b>Biến động kho</b><p class="text-muted mb-0 mt-2">Import · SaleDeduction · TransferOut · TransferIn · Adjustment · Warning</p></div></div>
+    </div>
+</section>
+@section Scripts {
+<script>
+(async function() {
+    try {
+        const [orders, inventories, transfers] = await Promise.all([
+            OsyApi.request('/api/orders'),
+            OsyApi.request('/api/inventories'),
+            OsyApi.request('/api/transfers').catch(() => [])
+        ]);
+        const confirmed = orders.filter(x => ['Confirmed', 'Completed'].includes(x.status));
+        const revenue = confirmed.reduce((sum, x) => sum + Number(x.totalAmount || 0), 0);
+        const negatives = inventories.filter(x => x.isNegative || Number(x.quantity) < 0);
+        const inTransit = transfers.filter(x => x.status === 'InTransit');
+        document.getElementById('orderCount').textContent = orders.length;
+        document.getElementById('revenue').textContent = OsyUi.money(revenue);
+        document.getElementById('negativeStock').textContent = negatives.length;
+        document.getElementById('inTransitCount').textContent = inTransit.length;
+        const recent = [...orders].sort((a,b) => new Date(b.orderDate) - new Date(a.orderDate)).slice(0, 7);
+        document.getElementById('recentOrders').innerHTML = recent.length ? recent.map(x => '<tr><td>#' + x.orderId + '</td><td>' + OsyUi.escape(x.kitchenName) + '</td><td>' + OsyUi.badge(x.status) + '</td><td><b>' + OsyUi.money(x.totalAmount) + '</b></td><td>' + OsyUi.date(x.orderDate) + '</td></tr>').join('') : '<tr><td colspan="5" class="empty-state">Chưa có đơn hàng.</td></tr>';
+        document.getElementById('stockWarnings').innerHTML = negatives.length ? negatives.slice(0, 8).map(x => '<div class="d-flex justify-content-between align-items-center py-2 border-bottom"><div><b>' + OsyUi.escape(x.ingredientName) + '</b><small class="d-block text-muted">' + OsyUi.escape(x.kitchenName) + '</small></div><span class="status-badge status-negative">' + OsyUi.number(x.quantity) + ' ' + OsyUi.escape(x.unit) + '</span></div>').join('') : '<div class="empty-state">Không có tồn kho âm.</div>';
+    } catch (e) { OsyUi.toast(e.message, 'danger'); }
+})();
+</script>
+}

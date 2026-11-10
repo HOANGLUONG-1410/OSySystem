@@ -1,0 +1,216 @@
+@{
+    ViewData["Title"] = "Quản lý lịch làm việc";
+}
+<section class="panel">
+    <header class="panel-head">
+        <div><h3>Lịch làm việc</h3><small class="text-muted">Quản lý ca làm của nhân viên</small></div>
+        <div class="action-row">
+            <button class="btn btn-outline-brand btn-sm" onclick="loadSchedules()">Làm mới</button>
+            <button class="btn btn-brand btn-sm" data-bs-toggle="modal" data-bs-target="#scheduleModal">+ Thêm ca</button>
+        </div>
+    </header>
+    <div class="table-responsive">
+        <table class="table" id="scheduleTable">
+            <thead>
+                <tr><th>Ngày</th><th>Nhân viên</th><th>Ca</th><th>Ghi chú</th><th>Người tạo</th><th>Hành động</th></tr>
+            </thead>
+            <tbody id="scheduleBody"></tbody>
+        </table>
+    </div>
+</section>
+
+<div class="modal fade" id="scheduleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form class="modal-content" id="scheduleForm">
+            <div class="modal-header">
+                <h5 class="modal-title" id="scheduleModalTitle">Thêm ca làm việc</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="scheduleAlert"></div>
+                <div class="mb-3">
+                    <label class="form-label">Nhân viên</label>
+                    <select class="form-control" id="sStaffAccountId" required></select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Ngày làm</label>
+                    <input type="date" class="form-control" id="sWorkDate" required />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Ca</label>
+                    <select class="form-control" id="sShiftType" required>
+                        <option value="Sáng">Sáng</option>
+                        <option value="Chiều">Chiều</option>
+                        <option value="Tối">Tối</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Ghi chú</label>
+                    <textarea class="form-control" id="sNote" maxlength="500" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <input type="hidden" id="sEditId" value="" />
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Đóng</button>
+                <button class="btn btn-brand" type="submit">Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    let schedules = [];
+    let staffList = [];
+
+    async function loadSchedules() {
+        try {
+            const user = OsyAuth.getUser();
+            schedules = await OsyApi.request('/api/schedules/kitchen/' + user.kitchenId);
+            renderSchedules();
+        } catch (e) { OsyUi.toast(e.message, 'danger'); }
+    }
+
+    function renderSchedules() {
+        const body = document.getElementById('scheduleBody');
+        if (!schedules.length) {
+            body.innerHTML = '<tr><td colspan="6" class="empty-state">Chưa có lịch làm việc</td></tr>';
+            return;
+        }
+
+        var groups = {};
+        schedules.forEach(function (x) {
+            if (!groups[x.workDate]) groups[x.workDate] = [];
+            groups[x.workDate].push(x);
+        });
+
+        var html = '';
+        var dates = Object.keys(groups).sort();
+        dates.forEach(function (date) {
+            var items = groups[date];
+            html += '<tr>';
+            html += '<td rowspan="' + items.length + '" class="fw-bold text-nowrap align-middle">' + date + '</td>';
+            html += '<td><b>' + OsyUi.escape(items[0].staffName) + '</b></td>';
+            html += '<td>' + OsyUi.badge(items[0].shiftType) + '</td>';
+            html += '<td>' + OsyUi.escape(items[0].note || '') + '</td>';
+            html += '<td>' + OsyUi.escape(items[0].createdByName) + '</td>';
+            html += '<td class="text-nowrap">' +
+                '<button class="btn btn-sm btn-outline-brand me-1" onclick="editSchedule(' + items[0].scheduleId + ')">Sửa</button>' +
+                '<button class="btn btn-sm btn-outline-danger" onclick="deleteSchedule(' + items[0].scheduleId + ')">Xóa</button>' +
+                '</td>';
+            html += '</tr>';
+            for (var i = 1; i < items.length; i++) {
+                html += '<tr>';
+                html += '<td><b>' + OsyUi.escape(items[i].staffName) + '</b></td>';
+                html += '<td>' + OsyUi.badge(items[i].shiftType) + '</td>';
+                html += '<td>' + OsyUi.escape(items[i].note || '') + '</td>';
+                html += '<td>' + OsyUi.escape(items[i].createdByName) + '</td>';
+                html += '<td class="text-nowrap">' +
+                    '<button class="btn btn-sm btn-outline-brand me-1" onclick="editSchedule(' + items[i].scheduleId + ')">Sửa</button>' +
+                    '<button class="btn btn-sm btn-outline-danger" onclick="deleteSchedule(' + items[i].scheduleId + ')">Xóa</button>' +
+                    '</td>';
+                html += '</tr>';
+            }
+        });
+        body.innerHTML = html;
+    }
+
+    async function loadStaff() {
+        try {
+            staffList = await OsyApi.request('/api/accounts');
+        } catch (e) { staffList = []; }
+    }
+
+    function populateStaffSelect(selectedId) {
+        const sel = document.getElementById('sStaffAccountId');
+        sel.innerHTML = '<option value="">-- Chọn nhân viên --</option>';
+        staffList.filter(s => s.role === 'Staff').forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.accountId;
+            opt.textContent = s.fullName + ' (' + s.username + ')';
+            if (selectedId && s.accountId === selectedId) opt.selected = true;
+            sel.appendChild(opt);
+        });
+    }
+
+    function editSchedule(id) {
+        const x = schedules.find(s => s.scheduleId === id);
+        if (!x) return;
+        document.getElementById('scheduleModalTitle').textContent = 'Sửa ca làm việc';
+        document.getElementById('sEditId').value = x.scheduleId;
+        document.getElementById('sWorkDate').value = x.workDate;
+        document.getElementById('sShiftType').value = x.shiftType;
+        document.getElementById('sNote').value = x.note || '';
+        const sel = document.getElementById('sStaffAccountId');
+        sel.disabled = true;
+        populateStaffSelect(x.staffAccountId);
+        OsyUi.modal('scheduleModal').show();
+    }
+
+    function resetScheduleForm() {
+        document.getElementById('scheduleModalTitle').textContent = 'Thêm ca làm việc';
+        document.getElementById('sEditId').value = '';
+        document.getElementById('sWorkDate').value = '';
+        document.getElementById('sShiftType').value = 'Sáng';
+        document.getElementById('sNote').value = '';
+        const sel = document.getElementById('sStaffAccountId');
+        sel.disabled = false;
+        populateStaffSelect(null);
+    }
+
+    document.getElementById('scheduleForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const editId = document.getElementById('sEditId').value;
+        const staffAccountId = parseInt(document.getElementById('sStaffAccountId').value);
+        const workDate = document.getElementById('sWorkDate').value;
+        const shiftType = document.getElementById('sShiftType').value;
+        const note = document.getElementById('sNote').value.trim();
+
+        if (!staffAccountId || !workDate || !shiftType) {
+            OsyUi.alert('scheduleAlert', 'Vui lòng điền đầy đủ thông tin.', 'danger');
+            return;
+        }
+
+        try {
+            if (editId) {
+                await OsyApi.request('/api/schedules/' + editId, {
+                    method: 'PUT',
+                    body: { workDate, shiftType, note }
+                });
+                OsyUi.toast('Cập nhật ca làm thành công.');
+            } else {
+                await OsyApi.request('/api/schedules', {
+                    method: 'POST',
+                    body: { staffAccountId, workDate: workDate + 'T00:00:00', shiftType, note }
+                });
+                OsyUi.toast('Tạo ca làm thành công.');
+            }
+            OsyUi.modal('scheduleModal').hide();
+            resetScheduleForm();
+            await loadSchedules();
+        } catch (e) {
+            OsyUi.alert('scheduleAlert', e.message, 'danger');
+        }
+    });
+
+    async function deleteSchedule(id) {
+        const confirm = await OsyUi.confirm('Bạn có chắc muốn xóa ca làm này?');
+        if (!confirm) return;
+        try {
+            await OsyApi.request('/api/schedules/' + id, { method: 'DELETE' });
+            OsyUi.toast('Đã xóa ca làm.');
+            await loadSchedules();
+        } catch (e) {
+            OsyUi.toast(e.message, 'danger');
+        }
+    }
+
+    document.getElementById('scheduleModal').addEventListener('show.bs.modal', function () {
+        if (!document.getElementById('sEditId').value) {
+            resetScheduleForm();
+        }
+    });
+
+    loadStaff().then(() => loadSchedules());
+</script>
+}

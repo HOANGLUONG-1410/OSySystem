@@ -1,0 +1,61 @@
+@{
+    ViewData["Title"] = "Danh mục - Bếp trung tâm";
+}
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tabIngredients">Nguyên liệu</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabMenuItems">Món ăn</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabRecipes">Công thức</a></li>
+</ul>
+<div class="tab-content">
+    <div class="tab-pane fade show active" id="tabIngredients">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span></span>
+            <button class="btn btn-brand btn-sm" data-bs-toggle="modal" data-bs-target="#ingredientModal" onclick="openIngredientModal()">+ Thêm nguyên liệu</button>
+        </div>
+        <div class="table-responsive"><table class="table"><thead><tr><th>Nguyên liệu</th><th>Đơn vị</th><th>Giá vốn</th><th>Thao tác</th></tr></thead><tbody id="ingredientList"></tbody></table></div>
+    </div>
+    <div class="tab-pane fade" id="tabMenuItems">
+        <div class="table-responsive"><table class="table"><thead><tr><th>Món ăn</th><th>Giá bán</th></tr></thead><tbody id="menuItemList"></tbody></table></div>
+    </div>
+    <div class="tab-pane fade" id="tabRecipes">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span></span>
+            <button class="btn btn-brand btn-sm" data-bs-toggle="modal" data-bs-target="#recipeModal" onclick="openRecipeModal()">+ Thêm công thức</button>
+        </div>
+        <div class="table-responsive"><table class="table"><thead><tr><th>Món ăn</th><th>Nguyên liệu</th><th>Số lượng</th><th>Thao tác</th></tr></thead><tbody id="recipeList"></tbody></table></div>
+    </div>
+</div>
+
+<!-- Ingredient Modal -->
+<div class="modal fade" id="ingredientModal" tabindex="-1"><div class="modal-dialog"><form class="modal-content" id="ingredientForm"><div class="modal-header"><h5 class="modal-title" id="ingredientModalTitle">Thêm nguyên liệu</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div id="ingredientAlert"></div><input type="hidden" id="ingredientEditId" value="" /><label class="form-label">Tên nguyên liệu</label><input class="form-control" id="ingredientName" maxlength="100" required /><label class="form-label mt-3">Đơn vị</label><input class="form-control" id="ingredientUnit" maxlength="50" required placeholder="kg, g, lít..." /><label class="form-label mt-3">Giá vốn</label><input class="form-control" id="ingredientCost" type="number" step="100" min="0" value="0" /></div><div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Đóng</button><button class="btn btn-brand" type="submit">Lưu</button></div></form></div></div>
+
+<!-- Recipe Modal -->
+<div class="modal fade" id="recipeModal" tabindex="-1"><div class="modal-dialog"><form class="modal-content" id="recipeForm"><div class="modal-header"><h5 class="modal-title" id="recipeModalTitle">Thêm công thức</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div id="recipeAlert"></div><input type="hidden" id="recipeEditId" value="" /><label class="form-label">Món ăn</label><select class="form-select" id="recipeMenuItem" required></select><label class="form-label mt-3">Nguyên liệu</label><select class="form-select" id="recipeIngredient" required></select><label class="form-label mt-3">Số lượng</label><input class="form-control" id="recipeQty" type="number" step="0.001" min="0.001" required /></div><div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Đóng</button><button class="btn btn-brand" type="submit">Lưu</button></div></form></div></div>
+
+@section Scripts {
+<script>
+let ingredients=[],menuItems=[],recipes=[];
+
+async function loadIngredients(){try{ingredients=await OsyApi.request('/api/ingredients');document.getElementById('ingredientList').innerHTML=ingredients.length?ingredients.map(i=>'<tr><td><b>'+OsyUi.escape(i.ingredientName)+'</b></td><td>'+OsyUi.escape(i.unit)+'</td><td>'+OsyUi.money(i.averageCost)+'</td><td><div class="action-row">'+(i.isActive?'<button class="btn btn-sm btn-outline-brand" onclick="openIngredientModal('+i.ingredientId+')">Sửa</button>':'<span class="status-badge status-inactive">Đã vô hiệu</span>')+'</div></td></tr>').join(''):'<tr><td colspan="4" class="empty-state">Không có nguyên liệu</td></tr>';}catch(e){OsyUi.toast(e.message,'danger');}}
+
+async function loadMenuItems(){try{menuItems=await OsyApi.request('/api/menu-items');document.getElementById('menuItemList').innerHTML=menuItems.length?menuItems.map(m=>'<tr><td><b>'+OsyUi.escape(m.menuItemName)+'</b></td><td>'+OsyUi.money(m.sellingPrice)+'</td></tr>').join(''):'<tr><td colspan="2" class="empty-state">Không có món ăn</td></tr>';}catch(e){OsyUi.toast(e.message,'danger');}}
+
+async function loadRecipes(){try{recipes=await OsyApi.request('/api/recipes');var g={};recipes.forEach(function(r){if(!g[r.menuItemName])g[r.menuItemName]=[];g[r.menuItemName].push(r);});var html='';Object.keys(g).sort().forEach(function(name){var items=g[name];html+='<tr><td rowspan="'+items.length+'" class="fw-bold align-middle">'+OsyUi.escape(name)+'</td><td>'+OsyUi.escape(items[0].ingredientName)+'</td><td>'+OsyUi.number(items[0].quantityRequired)+' '+OsyUi.escape(items[0].ingredientUnit)+'</td><td><div class="action-row"><button class="btn btn-sm btn-outline-brand" onclick="openRecipeModal('+items[0].recipeId+')">Sửa</button><button class="btn btn-sm btn-outline-danger" onclick="deleteRecipe('+items[0].recipeId+')">Xoá</button></div></td></tr>';for(var i=1;i<items.length;i++){html+='<tr><td>'+OsyUi.escape(items[i].ingredientName)+'</td><td>'+OsyUi.number(items[i].quantityRequired)+' '+OsyUi.escape(items[i].ingredientUnit)+'</td><td><div class="action-row"><button class="btn btn-sm btn-outline-brand" onclick="openRecipeModal('+items[i].recipeId+')">Sửa</button><button class="btn btn-sm btn-outline-danger" onclick="deleteRecipe('+items[i].recipeId+')">Xoá</button></div></td></tr>';}});document.getElementById('recipeList').innerHTML=html||'<tr><td colspan="4" class="empty-state">Không có công thức</td></tr>';}catch(e){OsyUi.toast(e.message,'danger');}}
+
+// --- Ingredient ---
+function openIngredientModal(id){const title=document.getElementById('ingredientModalTitle'),editId=document.getElementById('ingredientEditId');document.getElementById('ingredientAlert').innerHTML='';if(id){const i=ingredients.find(x=>x.ingredientId===id);title.textContent='Sửa nguyên liệu';editId.value=id;document.getElementById('ingredientName').value=i.ingredientName;document.getElementById('ingredientUnit').value=i.unit;document.getElementById('ingredientCost').value=i.averageCost;OsyUi.modal('ingredientModal').show();}else{title.textContent='Thêm nguyên liệu';editId.value='';document.getElementById('ingredientForm').reset();document.getElementById('ingredientCost').value='0';}}
+
+document.getElementById('ingredientForm').addEventListener('submit',async function(e){e.preventDefault();const editId=document.getElementById('ingredientEditId').value;const body={ingredientName:document.getElementById('ingredientName').value.trim(),unit:document.getElementById('ingredientUnit').value.trim(),averageCost:Number(document.getElementById('ingredientCost').value)};try{if(editId){await OsyApi.request('/api/ingredients/'+editId,{method:'PUT',body});}else{await OsyApi.request('/api/ingredients',{method:'POST',body});}OsyUi.modal('ingredientModal').hide();OsyUi.toast(editId?'Cập nhật thành công.':'Thêm thành công.');this.reset();await loadIngredients();}catch(e){OsyUi.alert('ingredientAlert',e.message,'danger');}});
+
+// --- Recipe ---
+async function populateRecipeDropdowns(){if(!menuItems.length)menuItems=await OsyApi.request('/api/menu-items');if(!ingredients.length)ingredients=await OsyApi.request('/api/ingredients');document.getElementById('recipeMenuItem').innerHTML=menuItems.filter(m=>m.isActive).map(m=>'<option value="'+m.menuItemId+'">'+OsyUi.escape(m.menuItemName)+'</option>').join('');document.getElementById('recipeIngredient').innerHTML=ingredients.filter(i=>i.isActive).map(i=>'<option value="'+i.ingredientId+'">'+OsyUi.escape(i.ingredientName)+' ('+OsyUi.escape(i.unit)+')</option>').join('');}
+
+function openRecipeModal(id){const title=document.getElementById('recipeModalTitle'),editId=document.getElementById('recipeEditId');document.getElementById('recipeAlert').innerHTML='';populateRecipeDropdowns();if(id){const r=recipes.find(x=>x.recipeId===id);title.textContent='Sửa công thức';editId.value=id;document.getElementById('recipeMenuItem').value=r.menuItemId;document.getElementById('recipeMenuItem').disabled=true;document.getElementById('recipeIngredient').value=r.ingredientId;document.getElementById('recipeIngredient').disabled=true;document.getElementById('recipeQty').value=r.quantityRequired;OsyUi.modal('recipeModal').show();}else{title.textContent='Thêm công thức';editId.value='';document.getElementById('recipeForm').reset();document.getElementById('recipeMenuItem').disabled=false;document.getElementById('recipeIngredient').disabled=false;}}
+
+async function deleteRecipe(id){if(await OsyUi.confirm('Xoá công thức này?')){try{await OsyApi.request('/api/recipes/'+id,{method:'DELETE'});OsyUi.toast('Đã xoá công thức.');await loadRecipes();}catch(e){OsyUi.toast(e.message,'danger');}}}
+
+document.getElementById('recipeForm').addEventListener('submit',async function(e){e.preventDefault();const editId=document.getElementById('recipeEditId').value;try{if(editId){await OsyApi.request('/api/recipes/'+editId,{method:'PUT',body:{quantityRequired:Number(document.getElementById('recipeQty').value)}});}else{await OsyApi.request('/api/recipes',{method:'POST',body:{menuItemId:Number(document.getElementById('recipeMenuItem').value),ingredientId:Number(document.getElementById('recipeIngredient').value),quantityRequired:Number(document.getElementById('recipeQty').value)}});}OsyUi.modal('recipeModal').hide();OsyUi.toast(editId?'Cập nhật thành công.':'Thêm thành công.');this.reset();document.getElementById('recipeMenuItem').disabled=false;document.getElementById('recipeIngredient').disabled=false;await loadRecipes();}catch(e){OsyUi.alert('recipeAlert',e.message,'danger');}});
+
+loadIngredients();loadMenuItems();loadRecipes();
+</script>
+}

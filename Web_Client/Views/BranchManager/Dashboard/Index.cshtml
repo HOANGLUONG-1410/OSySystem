@@ -1,0 +1,38 @@
+@{
+    ViewData["Title"] = "Tổng quan chi nhánh";
+}
+<div class="metric-grid">
+    <article class="metric-card"><small>Tồn kho chi nhánh</small><strong id="invCount">0</strong><span>Loại nguyên liệu</span></article>
+    <article class="metric-card success"><small>Đơn hàng hôm nay</small><strong id="orderCount">0</strong><span>Pending + Confirmed</span></article>
+    <article class="metric-card danger"><small>Tồn kho âm</small><strong id="negativeStock">0</strong><span>Cần kiểm tra</span></article>
+    <article class="metric-card"><small>Điều chuyển đến</small><strong id="transferCount">0</strong><span>InTransit + Received</span></article>
+</div>
+<div class="dashboard-grid">
+    <section class="panel">
+        <header class="panel-head"><h3>Đơn hàng gần đây</h3><a href="/BranchManager/Orders" class="btn btn-sm btn-outline-brand">Quản lý đơn</a></header>
+        <div class="table-responsive"><table class="table"><thead><tr><th>Mã đơn</th><th>Trạng thái</th><th>Tổng tiền</th><th>Thời gian</th></tr></thead><tbody id="orderBody"></tbody></table></div>
+    </section>
+    <section class="panel">
+        <header class="panel-head"><h3>Tồn kho chi nhánh</h3><a href="/BranchManager/Inventory" class="btn btn-sm btn-outline-brand">Xem kho</a></header>
+        <div class="table-responsive"><table class="table"><thead><tr><th>Nguyên liệu</th><th>Số lượng</th><th>Đơn vị</th></tr></thead><tbody id="invBody"></tbody></table></div>
+    </section>
+</div>
+@section Scripts {
+<script>
+(async function() {
+    try {
+        const [orders, inv, transfers] = await Promise.all([
+            OsyApi.request('/api/orders'),
+            OsyApi.request('/api/inventories'),
+            OsyApi.request('/api/transfers').catch(() => [])
+        ]);
+        document.getElementById('invCount').textContent = inv.length;
+        document.getElementById('orderCount').textContent = orders.filter(x => x.status === 'Pending' || x.status === 'Confirmed').length;
+        document.getElementById('negativeStock').textContent = inv.filter(x => x.isNegative).length;
+        document.getElementById('transferCount').textContent = transfers.filter(x => x.status === 'InTransit' || x.status === 'Received').length;
+        document.getElementById('orderBody').innerHTML = orders.length ? orders.sort((a,b) => new Date(b.orderDate) - new Date(a.orderDate)).slice(0, 7).map(x => '<tr><td><b>#' + x.orderId + '</b></td><td>' + OsyUi.badge(x.status) + '</td><td>' + OsyUi.money(x.totalAmount) + '</td><td>' + OsyUi.date(x.orderDate) + '</td></tr>').join('') : '<tr><td colspan="4" class="empty-state">Chưa có đơn hàng</td></tr>';
+        document.getElementById('invBody').innerHTML = inv.length ? inv.map(x => '<tr><td>' + OsyUi.escape(x.ingredientName) + '</td><td><b>' + OsyUi.number(x.quantity) + '</b></td><td>' + OsyUi.escape(x.unit) + '</td></tr>').join('') : '<tr><td colspan="3" class="empty-state">Chưa có dữ liệu</td></tr>';
+    } catch (e) { OsyUi.toast(e.message, 'danger'); }
+})();
+</script>
+}

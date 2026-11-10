@@ -1,0 +1,131 @@
+@{
+    ViewData["Title"] = "Quản lý nhân sự";
+}
+<section class="panel">
+    <header class="panel-head">
+        <div><h3>Nhân sự chi nhánh</h3><small class="text-muted">Quản lý tài khoản nhân viên</small></div>
+        <div class="action-row">
+            <button class="btn btn-outline-brand btn-sm" onclick="loadPersonnel()">Làm mới</button>
+            <button class="btn btn-brand btn-sm" data-bs-toggle="modal" data-bs-target="#personnelModal">+ Thêm nhân viên</button>
+        </div>
+    </header>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr><th>Tên đăng nhập</th><th>Họ tên</th><th>Vai trò</th><th>Trạng thái</th><th>Ngày tạo</th></tr>
+            </thead>
+            <tbody id="personnelBody"></tbody>
+        </table>
+    </div>
+</section>
+
+<div class="modal fade" id="personnelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form class="modal-content" id="personnelForm">
+            <div class="modal-header">
+                <h5 class="modal-title">Thêm nhân viên</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="personnelAlert"></div>
+                <div class="mb-3">
+                    <label class="form-label">Tên đăng nhập</label>
+                    <input class="form-control" id="pUsername" required maxlength="50" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Họ tên</label>
+                    <input class="form-control" id="pFullName" required maxlength="100" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Mật khẩu</label>
+                    <div class="input-group">
+                        <input type="password" class="form-control" id="pPassword" required minlength="6" />
+                        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('pPassword', this)" tabindex="-1">
+                            <span class="eye-icon">&#128065;</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Đóng</button>
+                <button class="btn btn-brand" type="submit">Tạo tài khoản</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function togglePassword(id, btn) {
+        var input = document.getElementById(id);
+        if (input.type === 'password') {
+            input.type = 'text';
+            btn.querySelector('.eye-icon').innerHTML = '&#128064;';
+        } else {
+            input.type = 'password';
+            btn.querySelector('.eye-icon').innerHTML = '&#128065;';
+        }
+    }
+
+    let personnel = [];
+
+    async function loadPersonnel() {
+        try {
+            personnel = await OsyApi.request('/api/accounts');
+            renderPersonnel();
+        } catch (e) { OsyUi.global(e.message, 'danger'); }
+    }
+
+    function renderPersonnel() {
+        const body = document.getElementById('personnelBody');
+        if (!personnel.length) {
+            body.innerHTML = '<tr><td colspan="5" class="empty-state">Chưa có nhân viên trong chi nhánh</td></tr>';
+            return;
+        }
+        body.innerHTML = personnel.map(x =>
+            '<tr>' +
+            '<td><b>' + OsyUi.escape(x.username) + '</b></td>' +
+            '<td>' + OsyUi.escape(x.fullName) + '</td>' +
+            '<td>' + OsyUi.badge(x.role) + '</td>' +
+            '<td>' + (x.isActive ? '<span class="status-badge status-active">Hoạt động</span>' : '<span class="status-badge status-cancelled">Khóa</span>') + '</td>' +
+            '<td>' + OsyUi.date(x.createdAt) + '</td>' +
+            '</tr>'
+        ).join('');
+    }
+
+    document.getElementById('personnelForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const username = document.getElementById('pUsername').value.trim();
+        const fullName = document.getElementById('pFullName').value.trim();
+        const password = document.getElementById('pPassword').value;
+
+        if (!username || !fullName || !password) {
+            OsyUi.alert('personnelAlert', 'Vui lòng điền đầy đủ thông tin.', 'danger');
+            return;
+        }
+
+        try {
+            await OsyApi.request('/api/auth/accounts', {
+                method: 'POST',
+                body: {
+                    username,
+                    password,
+                    fullName,
+                    role: 'Staff',
+                    kitchenId: OsyAuth.getUser()?.kitchenId
+                }
+            });
+            OsyUi.modal('personnelModal').hide();
+            OsyUi.toast('Tạo tài khoản nhân viên thành công.');
+            document.getElementById('pUsername').value = '';
+            document.getElementById('pFullName').value = '';
+            document.getElementById('pPassword').value = '';
+            await loadPersonnel();
+        } catch (e) {
+            OsyUi.alert('personnelAlert', e.message, 'danger');
+        }
+    });
+
+    loadPersonnel();
+</script>
+}

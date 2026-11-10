@@ -1,0 +1,66 @@
+@{
+    ViewData["Title"] = "Lịch làm việc";
+}
+<section class="panel">
+    <header class="panel-head">
+        <div><h3>Lịch làm việc</h3><small class="text-muted">Xem lịch từ quản lý chi nhánh</small></div>
+        <button class="btn btn-outline-brand btn-sm" onclick="loadMySchedule()">Làm mới</button>
+    </header>
+    <div class="table-responsive">
+        <table class="table" id="myScheduleTable">
+            <thead>
+                <tr><th>Ngày</th><th>Ca</th><th>Ghi chú</th><th>Chi nhánh</th></tr>
+            </thead>
+            <tbody id="myScheduleBody"></tbody>
+        </table>
+    </div>
+</section>
+
+@section Scripts {
+<script>
+    let mySchedules = [];
+
+    async function loadMySchedule() {
+        try {
+            mySchedules = await OsyApi.request('/api/schedules/my');
+            renderMySchedule();
+        } catch (e) { OsyUi.toast(e.message, 'danger'); }
+    }
+
+    function renderMySchedule() {
+        const body = document.getElementById('myScheduleBody');
+        if (!mySchedules.length) {
+            body.innerHTML = '<tr><td colspan="4" class="empty-state">Chưa có lịch làm việc</td></tr>';
+            return;
+        }
+
+        var groups = {};
+        mySchedules.forEach(function (x) {
+            if (!groups[x.workDate]) groups[x.workDate] = [];
+            groups[x.workDate].push(x);
+        });
+
+        var html = '';
+        var dates = Object.keys(groups).sort();
+        dates.forEach(function (date) {
+            var items = groups[date];
+            html += '<tr>';
+            html += '<td rowspan="' + items.length + '" class="fw-bold text-nowrap align-middle">' + date + '</td>';
+            html += '<td>' + OsyUi.badge(items[0].shiftType) + '</td>';
+            html += '<td>' + OsyUi.escape(items[0].note || '') + '</td>';
+            html += '<td>' + OsyUi.escape(items[0].kitchenName) + '</td>';
+            html += '</tr>';
+            for (var i = 1; i < items.length; i++) {
+                html += '<tr>';
+                html += '<td>' + OsyUi.badge(items[i].shiftType) + '</td>';
+                html += '<td>' + OsyUi.escape(items[i].note || '') + '</td>';
+                html += '<td>' + OsyUi.escape(items[i].kitchenName) + '</td>';
+                html += '</tr>';
+            }
+        });
+        body.innerHTML = html;
+    }
+
+    loadMySchedule();
+</script>
+}

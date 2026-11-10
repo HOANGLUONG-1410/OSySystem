@@ -1,0 +1,84 @@
+# .cursorrules - BÚN BÒ MANAGEMENT SYSTEM (PRN232 - .NET 8)
+# Dành cho nhóm 2 thành viên + AI Agent cộng tác
+
+## 1. TỔNG QUAN DỰ ÁN & VAI TRÒ
+- **Dự án:** Hệ thống Quản lý Chuỗi Bún Bò (Bếp tổng & Các chi nhánh).
+- **Môn học:** PRN232 - Nền tảng: .NET 8.0, ASP.NET Core Web API, ASP.NET Core MVC (Web_Client), EF Core 8.
+- **Quy tắc nhóm:** 2 thành viên cùng chia sẻ một kho quy chuẩn (Living Context). Mọi Agent đều phải tuân thủ nghiêm ngặt các hiệp ước bên dưới, không tự ý thay đổi cấu trúc hoặc pattern kiến trúc đã thống nhất.
+
+---
+
+## 2. CHECKLIST YÊU CẦU BẮT BUỘC TỪ GIÁO VIÊN (PRN232)
+Mọi code mới hoặc refactor đều phải đáp ứng các tiêu chuẩn sau:
+1. **Tối thiểu 5 CRUD API chuẩn:** `GET /api/{items}`, `GET /api/{items}/{id}`, `POST /api/{items}`, `PUT /api/{items}/{id}`, `DELETE /api/{items}/{id}`.
+2. **OData:** Sử dụng thư viện `Microsoft.AspNetCore.OData` hỗ trợ query linh hoạt (`[EnableQuery]`, `$select`, `$filter`, `$orderby`, `$top`, `$skip`).
+3. **AutoMapper:** Ánh xạ tự động giữa Domain Models (Entities) và DTOs (Request / Response), cấm lặp code gán thủ công từng thuộc tính khi đã cấu hình Mapping Profile.
+4. **Media Formatter & Content Negotiation:** Web API phải hỗ trợ Content Negotiation (tối thiểu JSON và XML formatters thông qua `AddXmlSerializerFormatters()` / `AddXmlDataContractSerializerFormatters()`).
+5. **Data Annotations:** Khai báo đầy đủ các thuộc tính kiểm tra tính hợp lệ trên Entity và DTO (`[Required]`, `[MaxLength]`, `[MinLength]`, `[Range]`, `[RegularExpression]`, ...).
+6. **Gọi API bằng AJAX:** Mọi giao tiếp từ `Web_Client` sang `Web_API` thực hiện hoàn toàn bằng JavaScript (Fetch API / AJAX), kèm JWT Bearer Token lấy từ `localStorage`.
+7. **JWT Authentication & Authorization:** Xác thực bằng JWT, phân quyền theo Role (`SystemAdmin`, `KitchenManager`, `BranchManager`, `Staff`).
+8. **EF Core Code First:** Quản lý cơ sở dữ liệu qua Migrations trên `BunBoDbContext`.
+9. **Lưu ý:** Dự án KHÔNG yêu cầu viết Unit Tests.
+
+---
+
+## 3. KIẾN TRÚC PHÂN TẦNG NGHIÊM NGẶT (STRICT N-TIER)
+Luồng dữ liệu chỉ đi một chiều:
+```
+[Web_Client (Razor + AJAX)] 
+           ↓ HTTP JSON/XML (Bearer Token)
+[Web_API (Controllers + Middlewares)] 
+           ↓ 
+[Services (Business Logic + DTOs + Exceptions)] 
+           ↓ 
+[Repositories (IRepository / UnitOfWork)] 
+           ↓ 
+[DataAccessObjects (DAOs)] 
+           ↓ 
+[BusinessObjects (BunBoDbContext + Models + Enums)]
+```
+
+### Các điều CẤM (Forbidden):
+- ❌ CẤM Controller gọi trực tiếp Repository hoặc DAO hoặc DbContext.
+- ❌ CẤM Service gọi trực tiếp DbContext.
+- ❌ CẤM trả trực tiếp Entity của `BusinessObjects` ra ngoài API response (bắt buộc map sang Response DTO).
+- ❌ CẤM viết business logic phức tạp hoặc tính toán số lượng tồn kho trong Controller/DAO.
+
+---
+
+## 4. XỬ LÝ LỖI (EXCEPTION HANDLING) & THÔNG BÁO TIẾNG VIỆT
+1. **Tuyệt đối không dùng Exception chung chung:** Khi gặp lỗi nghiệp vụ, bắt buộc ném 1 trong 4 Custom Exception định nghĩa tại `Services/Exceptions/`:
+   - `BusinessException`: Lỗi nghiệp vụ, dữ liệu không hợp lệ (HTTP 400 Bad Request).
+   - `AuthenticationException`: Đăng nhập thất bại, token hết hạn/không hợp lệ (HTTP 401 Unauthorized).
+   - `ForbiddenException`: Không có quyền truy cập tài nguyên (HTTP 403 Forbidden).
+   - `NotFoundException`: Không tìm thấy bản ghi theo Id (HTTP 404 Not Found).
+2. **ExceptionMiddleware:** Toàn bộ exception sẽ được `Web_API/Middlewares/ExceptionMiddleware.cs` bắt và trả về format thống nhất:
+   ```json
+   {
+     "statusCode": 400,
+     "message": "Nội dung lỗi bằng tiếng Việt rõ ràng.",
+     "details": null
+   }
+   ```
+3. **Ngôn ngữ thông báo:** Mọi message hiển thị cho người dùng / API response BẮT BUỘC là **Tiếng Việt có dấu**, không để lọt thông báo kỹ thuật mặc định của .NET (như `Object reference not set...`).
+
+---
+
+## 5. HIỆU NĂNG ENTITY FRAMEWORK CORE
+1. **AsNoTracking:** Mọi câu query chỉ đọc (read-only / GET) trong DAO bắt buộc phải có `.AsNoTracking()`.
+2. **Eager Loading:** Luôn dùng `.Include()` / `.ThenInclude()` tường minh cho các quan hệ cần hiển thị (ví dụ: `CreatedByAccount`, `Kitchen`, `Ingredient`), tránh lazy loading hoặc N+1 query.
+
+---
+
+## 6. PHỐI HỢP NHÓM & QUẢN LÝ BỘ NÃO SỐNG (LIVING MEMORY)
+1. **projectmem (MCP Server / CLI):**
+   - Trước khi sửa đổi một module hoặc sửa bug: Đọc `pjm show` hoặc gọi `get_summary` / `get_global_gotchas`.
+   - Khi đưa ra quyết định mới: Ghi nhận bằng `add_decision(summary)` hoặc `pjm decision "..."`.
+   - Khi phát hiện bug: Ghi nhận bằng `log_issue(summary, location)` và `record_fix(summary)`.
+2. **serena (Code Navigation):**
+   - Sử dụng serena để tìm kiếm symbol, AST graph, cấu trúc class và tham chiếu trước khi tạo class/method mới để tránh trùng lặp.
+3. **Commit Convention:**
+   - `feat:` Thêm tính năng mới (theo yêu cầu GV).
+   - `fix:` Sửa lỗi logic hoặc bug UI/API.
+   - `refactor:` Tái cấu trúc code (AutoMapper, Exception, AsNoTracking).
+   - `docs:` Cập nhật tài liệu, ADR.

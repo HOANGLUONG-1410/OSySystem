@@ -1,0 +1,38 @@
+@{
+    ViewData["Title"] = "Tổng quan bếp trung tâm";
+}
+<div class="metric-grid">
+    <article class="metric-card"><small>Tồn kho bếp tổng</small><strong id="invCount">0</strong><span>Loại nguyên liệu</span></article>
+    <article class="metric-card success"><small>Phiếu điều chuyển</small><strong id="transferCount">0</strong><span>Draft + InTransit</span></article>
+    <article class="metric-card danger"><small>Tồn kho âm</small><strong id="negativeStock">0</strong><span>Cần kiểm tra</span></article>
+    <article class="metric-card"><small>Nguyên liệu</small><strong id="ingredientCount">0</strong><span>Trong danh mục</span></article>
+</div>
+<div class="dashboard-grid">
+    <section class="panel">
+        <header class="panel-head"><h3>Tồn kho bếp trung tâm</h3><a href="/KitchenManager/Inventory" class="btn btn-sm btn-outline-brand">Quản lý kho</a></header>
+        <div class="table-responsive"><table class="table"><thead><tr><th>Nguyên liệu</th><th>Số lượng</th><th>Đơn vị</th><th>Giá vốn</th></tr></thead><tbody id="invBody"></tbody></table></div>
+    </section>
+    <section class="panel">
+        <header class="panel-head"><h3>Điều chuyển gần đây</h3><a href="/KitchenManager/Transfers" class="btn btn-sm btn-outline-brand">Xem tất cả</a></header>
+        <div class="table-responsive"><table class="table"><thead><tr><th>Mã</th><th>Đến</th><th>Trạng thái</th></tr></thead><tbody id="transferBody"></tbody></table></div>
+    </section>
+</div>
+@section Scripts {
+<script>
+(async function() {
+    try {
+        const [inv, transfers, ingredients] = await Promise.all([
+            OsyApi.request('/api/inventories'),
+            OsyApi.request('/api/transfers').catch(() => []),
+            OsyApi.request('/api/ingredients')
+        ]);
+        document.getElementById('invCount').textContent = inv.length;
+        document.getElementById('transferCount').textContent = transfers.filter(x => x.status === 'Draft' || x.status === 'InTransit').length;
+        document.getElementById('negativeStock').textContent = inv.filter(x => x.isNegative).length;
+        document.getElementById('ingredientCount').textContent = ingredients.length;
+        document.getElementById('invBody').innerHTML = inv.length ? inv.map(x => '<tr><td>' + OsyUi.escape(x.ingredientName) + '</td><td><b>' + OsyUi.number(x.quantity) + '</b></td><td>' + OsyUi.escape(x.unit) + '</td><td>' + OsyUi.money(x.averageCost) + '</td></tr>').join('') : '<tr><td colspan="4" class="empty-state">Chưa có dữ liệu</td></tr>';
+        document.getElementById('transferBody').innerHTML = transfers.length ? transfers.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5).map(x => '<tr><td>#' + x.transferRequestId + '</td><td>' + OsyUi.escape(x.toKitchenName) + '</td><td>' + OsyUi.badge(x.status) + '</td></tr>').join('') : '<tr><td colspan="3" class="empty-state">Chưa có phiếu</td></tr>';
+    } catch (e) { OsyUi.toast(e.message, 'danger'); }
+})();
+</script>
+}

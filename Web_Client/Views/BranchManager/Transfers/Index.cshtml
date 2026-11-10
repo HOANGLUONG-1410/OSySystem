@@ -1,0 +1,19 @@
+@{
+    ViewData["Title"] = "Nhận điều chuyển";
+}
+<section class="panel">
+    <header class="panel-head"><div><h3>Phiếu điều chuyển đến</h3><small class="text-muted">Xác nhận hàng chuyển đến chi nhánh</small></div><div class="action-row"><button class="btn btn-outline-brand btn-sm" onclick="loadTransfers()">Làm mới</button></div></header>
+    <div class="panel-body border-bottom"><div class="search-row"><input class="form-control" id="tfSearch" placeholder="Tìm mã phiếu..." oninput="renderTransfers()" /><select class="form-select" id="tfStatus" onchange="renderTransfers()"><option value="">Tất cả trạng thái</option><option>Draft</option><option>InTransit</option><option>Received</option><option>Cancelled</option></select></div></div>
+    <div class="table-responsive"><table class="table"><thead><tr><th>Mã phiếu</th><th>Từ</th><th>Trạng thái</th><th>Nguyên liệu</th><th>Thời gian</th><th>Thao tác</th></tr></thead><tbody id="tfBody"></tbody></table></div>
+</section>
+@section Scripts {
+<script>
+let transfers=[],kitchens=[],ingredients=[];
+async function loadTransfers(){try{const user=OsyAuth.getUser();[transfers,kitchens,ingredients]=await Promise.all([OsyApi.request('/api/transfers'),OsyApi.request('/api/kitchens'),OsyApi.request('/api/ingredients')]);transfers=transfers.filter(t=>t.toKitchenId===user.kitchenId);renderTransfers();}catch(e){OsyUi.toast(e.message,'danger');}}
+function renderTransfers(){const q=document.getElementById('tfSearch').value.toLowerCase(),s=document.getElementById('tfStatus').value;const rows=transfers.filter(x=>(!q||'#'+x.transferRequestId+' '+x.fromKitchenName+' '+x.toKitchenName.toLowerCase().includes(q))&&(!s||x.status===s));document.getElementById('tfBody').innerHTML=rows.length?rows.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).map(x=>'<tr><td><b>#'+x.transferRequestId+'</b></td><td>'+OsyUi.escape(x.fromKitchenName)+'</td><td>'+OsyUi.badge(x.status)+'</td><td>'+(x.items?.length||0)+' loại</td><td>'+OsyUi.date(x.createdAt)+'</td><td><div class="action-row">'+(x.status==='InTransit'?'<button class="btn btn-sm btn-success" onclick="tfAction('+x.transferRequestId+',\'receive\')">Nhận hàng</button>':'')+'<button class="btn btn-sm btn-light" onclick="showTf('+x.transferRequestId+')">Chi tiết</button></div></td></tr>').join(''):'<tr><td colspan="6" class="empty-state">Không có phiếu điều chuyển.</td></tr>';}
+async function tfAction(id,action){if(!await OsyUi.confirm('Xác nhận nhận hàng cho Transfer #'+id+'?'))return;try{const r=await OsyApi.request('/api/transfers/'+id+'/'+action,{method:'PATCH'});OsyUi.toast('Transfer #'+id+': Nhận hàng thành công.');await loadTransfers();}catch(e){OsyUi.toast(e.message,'danger');}}
+function showTf(id){const x=transfers.find(t=>t.transferRequestId===id);if(!x)return;OsyUi.showDetail('Transfer #'+x.transferRequestId,'<div class="detail-grid"><div><small>Từ</small><b>'+OsyUi.escape(x.fromKitchenName)+'</b></div><div><small>Đến</small><b>'+OsyUi.escape(x.toKitchenName)+'</b></div><div><small>Trạng thái</small>'+OsyUi.badge(x.status)+'</div><div><small>Thời gian</small><b>'+OsyUi.date(x.createdAt)+'</b></div>'+(x.note?'<div class="col-span-2"><small>Ghi chú</small><p class="mb-0">'+OsyUi.escape(x.note)+'</p></div>':'')+'</div><h6 class="mt-4 mb-2">Nguyên liệu điều chuyển</h6><div class="table-responsive"><table class="table"><thead><tr><th>Nguyên liệu</th><th>Số lượng</th></tr></thead><tbody>'+(x.items||[]).map(i=>'<tr><td>'+OsyUi.escape(i.ingredientName)+'</td><td>'+OsyUi.number(i.quantity)+' '+OsyUi.escape(i.unit)+'</td></tr>').join('')+'</tbody></table></div>');}
+loadTransfers();
+</script>
+}
+

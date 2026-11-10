@@ -1,0 +1,17 @@
+@{
+    ViewData["Title"] = "Danh mục - Chi nhánh";
+}
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tabIngredients">Nguyên liệu</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabMenuItems">Món ăn</a></li>
+</ul>
+<div class="tab-content">
+    <div class="tab-pane fade show active" id="tabIngredients"><div class="table-responsive"><table class="table"><thead><tr><th>Nguyên liệu</th><th>Đơn vị</th><th>Giá vốn</th></tr></thead><tbody id="ingredientList"></tbody></table></div></div>
+    <div class="tab-pane fade" id="tabMenuItems"><div class="table-responsive"><table class="table"><thead><tr><th>Món ăn</th><th>Giá bán</th></tr></thead><tbody id="menuItemList"></tbody></table></div></div>
+</div>
+@section Scripts {
+<script>
+OsyApi.request('/api/ingredients').then(d=>{const data=d.data||d||[];document.getElementById('ingredientList').innerHTML=data.length?data.map(i=>'<tr><td><b>'+OsyUi.escape(i.ingredientName)+'</b></td><td>'+OsyUi.escape(i.unit)+'</td><td>'+OsyUi.money(i.averageCost)+'</td></tr>').join(''):'<tr><td colspan="3" class="empty-state">Không có nguyên liệu</td></tr>';});
+OsyApi.request('/api/menu-items').then(d=>{const data=d.data||d||[];document.getElementById('menuItemList').innerHTML=data.length?data.map(m=>'<tr><td><b>'+OsyUi.escape(m.menuItemName)+'</b></td><td>'+OsyUi.money(m.sellingPrice)+'</td></tr>').join(''):'<tr><td colspan="2" class="empty-state">Không có món ăn</td></tr>';});
+</script>
+}

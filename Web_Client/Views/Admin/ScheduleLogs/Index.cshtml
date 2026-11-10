@@ -1,0 +1,82 @@
+@{
+    ViewData["Title"] = "Lịch sử thay đổi lịch làm việc";
+}
+<section class="panel">
+    <header class="panel-head">
+        <div><h3>Lịch sử thay đổi</h3><small class="text-muted">Theo dõi tất cả thay đổi lịch làm việc</small></div>
+        <button class="btn btn-outline-brand btn-sm" onclick="loadLogs()">Làm mới</button>
+    </header>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr><th>Mã lịch</th><th>Hành động</th><th>Người thực hiện</th><th>Thời gian</th><th>Chi tiết</th></tr>
+            </thead>
+            <tbody id="logBody"></tbody>
+        </table>
+    </div>
+</section>
+
+@section Scripts {
+<script>
+    let logs = [];
+
+    async function loadLogs() {
+        try {
+            logs = await OsyApi.request('/api/schedules/logs');
+            renderLogs();
+        } catch (e) { OsyUi.toast(e.message, 'danger'); }
+    }
+
+    function renderLogs() {
+        const body = document.getElementById('logBody');
+        if (!logs.length) {
+            body.innerHTML = '<tr><td colspan="5" class="empty-state">Chưa có thay đổi nào</td></tr>';
+            return;
+        }
+        body.innerHTML = logs.map(x =>
+            '<tr>' +
+            '<td>#' + x.scheduleId + '</td>' +
+            '<td>' + OsyUi.badge(x.action) + '</td>' +
+            '<td>' + OsyUi.escape(x.performedByName) + '</td>' +
+            '<td>' + OsyUi.date(x.performedAt) + '</td>' +
+            '<td><button class="btn btn-sm btn-outline-brand" onclick="showLogDetail(' + x.scheduleLogId + ')">Xem</button></td>' +
+            '</tr>'
+        ).join('');
+    }
+
+    async function showLogDetail(id) {
+        try {
+            const detail = await OsyApi.request('/api/schedules/logs/' + id);
+            let html = '<div class="detail-grid">';
+            html += '<span>Hành động</span><span class="fw-bold">' + OsyUi.escape(detail.action) + '</span>';
+            html += '<span>Người thực hiện</span><span>' + OsyUi.escape(detail.performedByName) + '</span>';
+            html += '<span>Thời gian</span><span>' + OsyUi.date(detail.performedAt) + '</span>';
+            html += '<span>Mã lịch</span><span>#' + detail.scheduleId + '</span>';
+
+            if (detail.changes && detail.changes.length) {
+                html += '<tr><td colspan="2" class="fw-bold pt-3" style="border:none">Thay đổi:</td></tr>';
+                detail.changes.forEach(function (c) {
+                    html += '<div class="diff-row">' +
+                        '<div class="diff-field">' + OsyUi.escape(c.fieldName) + '</div>' +
+                        '<div class="diff-values">' +
+                        (c.oldValue !== null && c.oldValue !== undefined
+                            ? '<div class="diff-old"><span class="diff-label">Cũ:</span><span>' + OsyUi.escape(c.oldValue) + '</span></div>'
+                            : '') +
+                        (c.newValue !== null && c.newValue !== undefined
+                            ? '<div class="diff-new"><span class="diff-label">Mới:</span><span>' + OsyUi.escape(c.newValue) + '</span></div>'
+                            : '') +
+                        '</div></div>';
+                });
+            } else {
+                html += '<span class="pt-3">(Không có thay đổi chi tiết)</span>';
+            }
+            html += '</div>';
+            OsyUi.showDetail('Chi tiết thay đổi', html);
+        } catch (e) {
+            OsyUi.toast(e.message, 'danger');
+        }
+    }
+
+    loadLogs();
+</script>
+}

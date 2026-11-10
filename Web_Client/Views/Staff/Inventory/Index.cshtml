@@ -1,0 +1,13 @@
+@{
+    ViewData["Title"] = "Xem tồn kho";
+}
+<section class="panel">
+    <header class="panel-head"><div><h3>Tồn kho</h3></div><button class="btn btn-outline-brand btn-sm" onclick="loadInventory()">Làm mới</button></header>
+    <div class="table-responsive"><table class="table"><thead><tr><th>Nguyên liệu</th><th>Đơn vị</th><th>Số lượng</th></tr></thead><tbody id="invBody"></tbody></table></div>
+</section>
+@section Scripts {
+<script>
+async function loadInventory(){try{const data=await OsyApi.request('/api/inventories');document.getElementById('invBody').innerHTML=data.length?data.map(x=>'<tr><td><b>'+OsyUi.escape(x.ingredientName)+'</b></td><td>'+OsyUi.escape(x.unit)+'</td><td>'+(x.isNegative?OsyUi.badge(OsyUi.number(x.quantity)):'<b>'+OsyUi.number(x.quantity)+'</b>')+'</td></tr>').join(''):'<tr><td colspan="3" class="empty-state">Chưa có dữ liệu</td></tr>';}catch(e){OsyUi.global(e.message,'danger');}}
+loadInventory();
+</script>
+}

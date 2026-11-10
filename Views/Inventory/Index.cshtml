@@ -1,0 +1,81 @@
+@{
+    ViewData["Title"] = "Kho nguyên liệu";
+}
+<section class="panel">
+    <header class="panel-head">
+        <div><h3>Tồn kho hiện tại</h3><small class="text-muted">Dữ liệu từ GET /api/inventories</small></div>
+        <div class="action-row">
+            <button class="btn btn-outline-brand btn-sm" onclick="loadInventory()">Làm mới</button>
+            <button class="btn btn-brand btn-sm" data-bs-toggle="modal" data-bs-target="#importModal">Nhập kho</button>
+        </div>
+    </header>
+    <div class="panel-body border-bottom">
+        <div class="search-row">
+            <input class="form-control" id="inventorySearch" placeholder="Tìm nguyên liệu hoặc Kitchen..." oninput="renderInventory()" />
+            <select class="form-select" id="inventoryKitchenFilter" onchange="renderInventory()"><option value="">Tất cả Kitchen</option></select>
+            <label class="form-check"><input class="form-check-input" type="checkbox" id="negativeOnly" onchange="renderInventory()" /> <span class="form-check-label">Chỉ tồn âm</span></label>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table"><thead><tr><th>Kitchen</th><th>Nguyên liệu</th><th>Đơn vị</th><th>Số lượng</th><th>Giá vốn</th><th>Giá trị tồn</th><th>Cập nhật</th></tr></thead><tbody id="inventoryBody"></tbody></table>
+    </div>
+</section>
+
+<section class="panel">
+    <header class="panel-head"><h3>Lịch sử biến động gần đây</h3><button class="btn btn-sm btn-outline-brand" onclick="loadLogs()">Tải log</button></header>
+    <div class="table-responsive"><table class="table"><thead><tr><th>Thời gian</th><th>Kitchen</th><th>Nguyên liệu</th><th>Loại</th><th>Thay đổi</th><th>Trước → Sau</th><th>Người thực hiện</th></tr></thead><tbody id="logBody"><tr><td colspan="7" class="empty-state">Nhấn “Tải log” để xem InventoryLog.</td></tr></tbody></table></div>
+</section>
+
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog"><form class="modal-content" id="importForm">
+        <div class="modal-header"><h5 class="modal-title">Nhập kho từ nhà cung cấp</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+            <div id="importAlert"></div>
+            <label class="form-label">Kitchen</label><select class="form-select" id="importKitchen" required></select>
+            <label class="form-label mt-3">Nguyên liệu</label><select class="form-select" id="importIngredient" required></select>
+            <div class="row g-3 mt-0"><div class="col-6"><label class="form-label">Số lượng</label><input class="form-control" id="importQuantity" type="number" step="0.001" min="0.001" required /></div><div class="col-6"><label class="form-label">Đơn giá</label><input class="form-control" id="importUnitCost" type="number" step="100" min="0" required /></div></div>
+            <label class="form-label mt-3">Ghi chú</label><textarea class="form-control" id="importNote" rows="2" placeholder="Ví dụ: Nhập hàng đầu tuần"></textarea>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Đóng</button><button class="btn btn-brand" type="submit">Gửi API nhập kho</button></div>
+    </form></div>
+</div>
+
+@section Scripts {
+<script>
+let inventories = [], kitchens = [], ingredients = [];
+async function loadInventory() {
+    try {
+        [inventories, kitchens, ingredients] = await Promise.all([OsyApi.request('/api/inventories'), OsyApi.request('/api/kitchens'), OsyApi.request('/api/ingredients')]);
+        const kitchenOptions = kitchens.map(x => `<option value="${x.kitchenId}">${OsyUi.escape(x.kitchenName)}</option>`).join('');
+        document.getElementById('inventoryKitchenFilter').innerHTML = '<option value="">Tất cả Kitchen</option>' + kitchenOptions;
+        document.getElementById('importKitchen').innerHTML = kitchenOptions;
+        document.getElementById('importIngredient').innerHTML = ingredients.filter(x => x.isActive).map(x => `<option value="${x.ingredientId}">${OsyUi.escape(x.ingredientName)} (${OsyUi.escape(x.unit)})</option>`).join('');
+        renderInventory();
+    } catch (error) { OsyUi.global(error.message, 'danger'); }
+}
+function renderInventory() {
+    const q = document.getElementById('inventorySearch').value.toLowerCase();
+    const kitchenId = document.getElementById('inventoryKitchenFilter').value;
+    const negative = document.getElementById('negativeOnly').checked;
+    const rows = inventories.filter(x => (!q || `${x.kitchenName} ${x.ingredientName}`.toLowerCase().includes(q)) && (!kitchenId || String(x.kitchenId) === kitchenId) && (!negative || x.isNegative));
+    document.getElementById('inventoryBody').innerHTML = rows.length ? rows.map(x => `<tr><td>${OsyUi.escape(x.kitchenName)}</td><td><b>${OsyUi.escape(x.ingredientName)}</b></td><td>${OsyUi.escape(x.unit)}</td><td>${x.isNegative ? OsyUi.badge(OsyUi.number(x.quantity)) : `<b>${OsyUi.number(x.quantity)}</b>`}</td><td>${OsyUi.money(x.averageCost)}</td><td>${OsyUi.money(x.inventoryValue)}</td><td>${OsyUi.date(x.lastUpdated)}</td></tr>`).join('') : '<tr><td colspan="7" class="empty-state">Không có dữ liệu phù hợp.</td></tr>';
+}
+async function loadLogs() {
+    try {
+        const logs = await OsyApi.request('/api/inventories/logs');
+        document.getElementById('logBody').innerHTML = logs.length ? logs.slice(0, 100).map(x => `<tr><td>${OsyUi.date(x.createdAt)}</td><td>${OsyUi.escape(x.kitchenName)}</td><td>${OsyUi.escape(x.ingredientName)}</td><td>${OsyUi.badge(x.logType)}</td><td><b>${Number(x.quantityChange) > 0 ? '+' : ''}${OsyUi.number(x.quantityChange)}</b></td><td>${OsyUi.number(x.quantityBefore)} → ${OsyUi.number(x.quantityAfter)}</td><td>${OsyUi.escape(x.performedByName || 'System')}</td></tr>`).join('') : '<tr><td colspan="7" class="empty-state">Chưa có log.</td></tr>';
+    } catch (error) { OsyUi.global(error.message, 'danger'); }
+}
+document.getElementById('importForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    try {
+        await OsyApi.request('/api/inventories/import', { method: 'POST', body: {
+            kitchenId: Number(document.getElementById('importKitchen').value), ingredientId: Number(document.getElementById('importIngredient').value),
+            quantity: Number(document.getElementById('importQuantity').value), unitCost: Number(document.getElementById('importUnitCost').value), note: document.getElementById('importNote').value.trim() || null
+        }});
+        OsyUi.modal('importModal').hide(); OsyUi.global('Nhập kho thành công. Inventory và AverageCost đã được cập nhật.'); this.reset(); await loadInventory();
+    } catch (error) { OsyUi.alert('importAlert', error.message, 'danger'); }
+});
+loadInventory();
+</script>
+}

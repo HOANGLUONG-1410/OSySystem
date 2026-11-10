@@ -1,0 +1,21 @@
+@{
+    ViewData["Title"] = "Kho nguyên liệu - Chi nhánh";
+}
+<section class="panel">
+    <header class="panel-head"><div><h3>Tồn kho chi nhánh</h3></div><button class="btn btn-outline-brand btn-sm" onclick="loadInventory()">Làm mới</button></header>
+    <div class="panel-body border-bottom"><div class="search-row"><input class="form-control" id="invSearch" placeholder="Tìm nguyên liệu..." oninput="renderInventory()" /><label class="form-check"><input class="form-check-input" type="checkbox" id="negativeOnly" onchange="renderInventory()" /> <span class="form-check-label">Chỉ tồn âm</span></label></div></div>
+    <div class="table-responsive"><table class="table"><thead><tr><th>Nguyên liệu</th><th>Đơn vị</th><th>Số lượng</th><th>Giá vốn</th><th>Giá trị tồn</th><th>Cập nhật</th></tr></thead><tbody id="invBody"></tbody></table></div>
+</section>
+<section class="panel">
+    <header class="panel-head"><h3>Lịch sử biến động</h3><button class="btn btn-sm btn-outline-brand" onclick="loadLogs()">Tải log</button></header>
+    <div class="table-responsive"><table class="table"><thead><tr><th>Thời gian</th><th>Nguyên liệu</th><th>Loại</th><th>Thay đổi</th><th>Trước → Sau</th></tr></thead><tbody id="logBody"><tr><td colspan="5" class="empty-state">Nhấn "Tải log" để xem.</td></tr></tbody></table></div>
+</section>
+@section Scripts {
+<script>
+let inventories=[];
+async function loadInventory(){try{inventories=await OsyApi.request('/api/inventories');renderInventory();}catch(e){OsyUi.global(e.message,'danger');}}
+function renderInventory(){const q=document.getElementById('invSearch').value.toLowerCase(),neg=document.getElementById('negativeOnly').checked;const rows=inventories.filter(x=>(!q||x.ingredientName.toLowerCase().includes(q))&&(!neg||x.isNegative));document.getElementById('invBody').innerHTML=rows.length?rows.map(x=>'<tr><td><b>'+OsyUi.escape(x.ingredientName)+'</b></td><td>'+OsyUi.escape(x.unit)+'</td><td>'+(x.isNegative?OsyUi.badge(OsyUi.number(x.quantity)):'<b>'+OsyUi.number(x.quantity)+'</b>')+'</td><td>'+OsyUi.money(x.averageCost)+'</td><td>'+OsyUi.money(x.inventoryValue)+'</td><td>'+OsyUi.date(x.lastUpdated)+'</td></tr>').join(''):'<tr><td colspan="6" class="empty-state">Không có dữ liệu</td></tr>';}
+async function loadLogs(){try{const logs=await OsyApi.request('/api/inventories/logs');document.getElementById('logBody').innerHTML=logs.length?logs.slice(0,100).map(x=>'<tr><td>'+OsyUi.date(x.createdAt)+'</td><td>'+OsyUi.escape(x.ingredientName)+'</td><td>'+OsyUi.badge(x.logType)+'</td><td><b>'+(Number(x.quantityChange)>0?'+':'')+OsyUi.number(x.quantityChange)+'</b></td><td>'+OsyUi.number(x.quantityBefore)+' → '+OsyUi.number(x.quantityAfter)+'</td></tr>').join(''):'<tr><td colspan="5" class="empty-state">Chưa có log.</td></tr>';}catch(e){OsyUi.global(e.message,'danger');}}
+loadInventory();
+</script>
+}

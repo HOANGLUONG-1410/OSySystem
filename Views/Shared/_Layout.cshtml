@@ -1,0 +1,68 @@
+@inject IConfiguration Configuration
+@{
+    var apiBaseUrl = Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:7066";
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="api-base-url" content="@apiBaseUrl" />
+    <title>@ViewData["Title"] - OSỹ Operations</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar" id="sidebar">
+            <a class="brand" asp-controller="Dashboard" asp-action="Index">
+                <img src="~/images/osy-logo.png" alt="Bún Bò Huế OSỹ" />
+                <span>Operations</span>
+            </a>
+
+            <div class="brand-slogan">Hương vị đậm đà<br />Truyền thống vẹn nguyên</div>
+
+            <nav class="side-nav">
+                <a asp-controller="Dashboard" asp-action="Index" data-nav="Dashboard"><span>◈</span>Tổng quan</a>
+                <a asp-controller="Inventory" asp-action="Index" data-nav="Inventory"><span>▦</span>Kho nguyên liệu</a>
+                <a asp-controller="Orders" asp-action="Index" data-nav="Orders"><span>◫</span>Đơn hàng</a>
+                <a asp-controller="Transfers" asp-action="Index" data-nav="Transfers"><span>⇄</span>Điều chuyển</a>
+                <a asp-controller="Catalog" asp-action="Index" data-nav="Catalog"><span>◇</span>Danh mục</a>
+            </nav>
+
+            <div class="sidebar-foot">
+                <div class="quality-pill"><b>NGON</b><span>SẠCH</span><b>NHANH</b></div>
+                <button type="button" class="btn btn-outline-light btn-sm w-100" onclick="OsyAuth.logout()">Đăng xuất</button>
+            </div>
+        </aside>
+
+        <section class="main-panel">
+            <header class="topbar">
+                <button class="menu-toggle" type="button" onclick="document.body.classList.toggle('sidebar-open')">☰</button>
+                <div>
+                    <p class="eyebrow">CÔNG TY TNHH ẨM THỰC NAM BẮC</p>
+                    <h1>@ViewData["Title"]</h1>
+                </div>
+                <div class="user-chip">
+                    <span class="user-avatar" id="currentUserInitial">O</span>
+                    <div><b id="currentUserName">Đang tải...</b><small id="currentUserRole">-</small></div>
+                </div>
+            </header>
+
+            <main class="content-area">
+                <div id="globalAlert"></div>
+                @RenderBody()
+            </main>
+        </section>
+    </div>
+
+    <div class="loading-overlay" id="loadingOverlay"><div class="loader-bowl">♨</div><span>Đang xử lý...</span></div>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/api-client.js" asp-append-version="true"></script>
+    <script>
+        OsyAuth.requireLogin();
+        OsyAuth.renderCurrentUser();
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

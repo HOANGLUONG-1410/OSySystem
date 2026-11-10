@@ -1,0 +1,26 @@
+@{
+    ViewData["Title"] = "Danh mục nền tảng";
+}
+<div class="row g-4">
+    <div class="col-xl-4"><section class="panel h-100"><header class="panel-head"><h3>Kitchen</h3><span class="status-badge" id="kitchenTotal">0</span></header><div class="panel-body" id="kitchenList"></div></section></div>
+    <div class="col-xl-4"><section class="panel h-100"><header class="panel-head"><h3>Nguyên liệu</h3><span class="status-badge" id="ingredientTotal">0</span></header><div class="panel-body" id="ingredientList"></div></section></div>
+    <div class="col-xl-4"><section class="panel h-100"><header class="panel-head"><h3>Thực đơn</h3><span class="status-badge" id="menuTotal">0</span></header><div class="panel-body" id="menuList"></div></section></div>
+</div>
+
+@section Scripts {
+<script>
+(async function () {
+    try {
+        const [kitchens, ingredients, menuItems] = await Promise.all([
+            OsyApi.request('/api/kitchens'), OsyApi.request('/api/ingredients'), OsyApi.request('/api/menu-items')
+        ]);
+        document.getElementById('kitchenTotal').textContent = kitchens.length;
+        document.getElementById('ingredientTotal').textContent = ingredients.length;
+        document.getElementById('menuTotal').textContent = menuItems.length;
+        document.getElementById('kitchenList').innerHTML = kitchens.map(x => `<div class="d-flex justify-content-between py-2 border-bottom"><div><b>${OsyUi.escape(x.kitchenName)}</b><small class="d-block text-muted">${OsyUi.escape(x.address || 'Chưa có địa chỉ')}</small></div>${OsyUi.badge(x.isActive ? (x.isCentralKitchen ? 'Central' : 'Active') : 'Inactive')}</div>`).join('') || '<div class="empty-state">Chưa có Kitchen.</div>';
+        document.getElementById('ingredientList').innerHTML = ingredients.map(x => `<div class="d-flex justify-content-between py-2 border-bottom"><div><b>${OsyUi.escape(x.ingredientName)}</b><small class="d-block text-muted">Giá vốn ${OsyUi.money(x.averageCost)}</small></div><span>${OsyUi.escape(x.unit)}</span></div>`).join('') || '<div class="empty-state">Chưa có nguyên liệu.</div>';
+        document.getElementById('menuList').innerHTML = menuItems.map(x => `<div class="d-flex justify-content-between py-2 border-bottom"><div><b>${OsyUi.escape(x.menuItemName)}</b><small class="d-block text-muted">${x.isActive ? 'Đang bán' : 'Ngừng bán'}</small></div><b>${OsyUi.money(x.sellingPrice)}</b></div>`).join('') || '<div class="empty-state">Chưa có món ăn.</div>';
+    } catch (error) { OsyUi.global(error.message, 'danger'); }
+})();
+</script>
+}
