@@ -14,6 +14,7 @@ Hệ thống Quản lý Chuỗi Bún Bò (Bếp Tổng và Chi nhánh Bán lẻ)
 - Error Handling: Global ExceptionMiddleware converts custom exceptions (BusinessException -> 400, AuthenticationException -> 401, ForbiddenException -> 403, NotFoundException -> 404) into unified ErrorResponse with Vietnamese messages. Never throw generic Exception.
 - Bổ sung AutoMapper 12.0.1 (MappingProfile), OData 8.2.5 (EnableQuery), Content Negotiation & XmlSerializerFormatters, và cấu hình jQuery AJAX cho Web_Client.
 - Completed AutoMapper adoption across MenuItemService, RecipeService, KitchenService, AccountService, ScheduleService; replaced anonymous API error/message payloads with ApiMessageResponse and CurrentUserResponse plus XML support in ExceptionMiddleware for full JSON/XML Content Negotiation; expanded OData [EnableQuery] to Kitchens, Accounts, and ScheduleLogs.
+- Refactor: refactor: complete AutoMapper adoption, fix XML content negotiation, expand OData [Services/DTOs/Auth/CurrentUserResponse.cs]
 
 ## Notes
 - gotcha: All read queries in DAOs must use AsNoTracking() to prevent tracking collision and memory overhead. All foreign entity mappings must be explicitly Included. [DataAccessObjects]
@@ -26,6 +27,16 @@ Hệ thống Quản lý Chuỗi Bún Bò (Bếp Tổng và Chi nhánh Bán lẻ)
 - `12.0.1`
 - `8.2.5`
 - `FINAL_SQL.sql`
+- `Services/DTOs/Auth/CurrentUserResponse.cs`
+- `Services/DTOs/Common/ApiMessageResponse.cs`
+- `Services/Implementations/AccountService.cs`
+- `Services/Implementations/KitchenService.cs`
+- `Services/Implementations/MenuItemService.cs`
+- `Services/Implementations/RecipeService.cs`
+- `Services/Implementations/ScheduleService.cs`
+- `Services/Mappings/MappingProfile.cs`
+- `Web_API/Controllers/AccountsController.cs`
+- `Web_API/Controllers/AuthController.cs`
 
 ## Open questions
 - None logged yet.
