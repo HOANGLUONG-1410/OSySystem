@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using AutoMapper;
 using BusinessObjects.Models;
 using Repositories.Interfaces;
 using Services.DTOs.Recipes;
@@ -17,17 +18,20 @@ namespace Services.Implementations
         private readonly IMenuItemRepository _menuItemRepository;
         private readonly IIngredientRepository _ingredientRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
 
         public RecipeService(
             IRecipeRepository recipeRepository,
             IMenuItemRepository menuItemRepository,
             IIngredientRepository ingredientRepository,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IMapper mapper)
         {
             _recipeRepository = recipeRepository;
             _menuItemRepository = menuItemRepository;
             _ingredientRepository = ingredientRepository;
             _unitOfWork = unitOfWork;
+            _mapper = mapper;
         }
 
         /// <summary>
@@ -37,9 +41,7 @@ namespace Services.Implementations
         {
             var recipes = await _recipeRepository.GetAllAsync();
 
-            return recipes
-                .Select(MapToResponse)
-                .ToList();
+            return _mapper.Map<List<RecipeResponse>>(recipes);
         }
 
         /// <summary>
@@ -61,9 +63,7 @@ namespace Services.Implementations
             var recipes = await _recipeRepository
                 .GetByMenuItemIdAsync(menuItemId);
 
-            return recipes
-                .Select(MapToResponse)
-                .ToList();
+            return _mapper.Map<List<RecipeResponse>>(recipes);
         }
 
         /// <summary>
@@ -89,7 +89,7 @@ namespace Services.Implementations
             recipe.MenuItem = menuItem!;
             recipe.Ingredient = ingredient!;
 
-            return MapToResponse(recipe);
+            return _mapper.Map<RecipeResponse>(recipe);
         }
 
         /// <summary>
@@ -132,20 +132,15 @@ namespace Services.Implementations
                     "This ingredient already exists in the recipe.");
             }
 
-            var recipe = new Recipe
-            {
-                MenuItemId = request.MenuItemId,
-                IngredientId = request.IngredientId,
-                QuantityRequired = request.QuantityRequired,
-                MenuItem = menuItem,
-                Ingredient = ingredient
-            };
+            var recipe = _mapper.Map<Recipe>(request);
+            recipe.MenuItem = menuItem;
+            recipe.Ingredient = ingredient;
 
             await _recipeRepository.AddAsync(recipe);
 
             await _unitOfWork.SaveChangesAsync();
 
-            return MapToResponse(recipe);
+            return _mapper.Map<RecipeResponse>(recipe);
         }
 
         /// <summary>
@@ -165,7 +160,7 @@ namespace Services.Implementations
             }
 
             // Chỉ cập nhật định lượng
-            recipe.QuantityRequired = request.QuantityRequired;
+            _mapper.Map(request, recipe);
 
             _recipeRepository.Update(recipe);
 
@@ -180,7 +175,7 @@ namespace Services.Implementations
             recipe.MenuItem = menuItem!;
             recipe.Ingredient = ingredient!;
 
-            return MapToResponse(recipe);
+            return _mapper.Map<RecipeResponse>(recipe);
         }
 
         /// <summary>
@@ -201,22 +196,6 @@ namespace Services.Implementations
             _recipeRepository.Delete(recipe);
 
             await _unitOfWork.SaveChangesAsync();
-        }
-
-        private static RecipeResponse MapToResponse(Recipe recipe)
-        {
-            return new RecipeResponse
-            {
-                RecipeId = recipe.RecipeId,
-                MenuItemId = recipe.MenuItemId,
-                MenuItemName = recipe.MenuItem?.MenuItemName ?? string.Empty,
-                IngredientId = recipe.IngredientId,
-                IngredientName =
-                    recipe.Ingredient?.IngredientName ?? string.Empty,
-                IngredientUnit =
-                    recipe.Ingredient?.Unit ?? string.Empty,
-                QuantityRequired = recipe.QuantityRequired
-            };
         }
     }
 }

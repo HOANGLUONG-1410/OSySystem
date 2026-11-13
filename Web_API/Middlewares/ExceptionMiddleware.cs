@@ -1,6 +1,8 @@
 ﻿using System;
+using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Xml.Serialization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -136,7 +138,23 @@ namespace Web_API.Middlewares
                     break;
             }
 
+            var acceptHeader = context.Request.Headers.Accept.ToString();
+            var wantsXml =
+                (acceptHeader.Contains("application/xml", StringComparison.OrdinalIgnoreCase)
+                 || acceptHeader.Contains("text/xml", StringComparison.OrdinalIgnoreCase))
+                && !acceptHeader.Contains("application/json", StringComparison.OrdinalIgnoreCase);
+
+            if (wantsXml)
+            {
+                response.ContentType = "application/xml; charset=utf-8";
+                var serializer = new XmlSerializer(typeof(ErrorResponse));
+                using var stringWriter = new StringWriter();
+                serializer.Serialize(stringWriter, errorResponse);
+                return response.WriteAsync(stringWriter.ToString());
+            }
+
             // Serialize error response thành JSON.
+            response.ContentType = "application/json; charset=utf-8";
             var jsonOptions = new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true,

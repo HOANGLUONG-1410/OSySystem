@@ -1,7 +1,10 @@
 ﻿using BusinessObjects.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OData.Query;
 using Services.DTOs.Accounts;
+using Services.DTOs.Auth;
+using Services.DTOs.Common;
 using Services.Exceptions;
 using Services.Interfaces;
 
@@ -24,6 +27,7 @@ namespace Web_API.Controllers
         }
 
         // SystemAdmin xem toàn bộ tài khoản, BranchManager xem nhân sự trong chi nhánh
+        [EnableQuery]
         [Authorize(Roles = "SystemAdmin,BranchManager")]
         [HttpGet]
         public async Task<IActionResult> GetAll()
@@ -33,7 +37,7 @@ namespace Web_API.Controllers
             if (currentUser.Role == AccountRole.BranchManager)
             {
                 if (!currentUser.KitchenId.HasValue)
-                    return Ok(new List<object>());
+                    return Ok(new List<AccountResponse>());
 
                 var branchAccounts = await _accountService
                     .GetByKitchenIdAsync(currentUser.KitchenId.Value);
@@ -68,10 +72,7 @@ namespace Web_API.Controllers
             }
             catch (NotFoundException ex)
             {
-                return NotFound(new
-                {
-                    message = ex.Message
-                });
+                return NotFound(new ApiMessageResponse(ex.Message));
             }
         }
 
@@ -90,19 +91,13 @@ namespace Web_API.Controllers
 
                 return Ok(result);
             }
-            catch (KeyNotFoundException ex)
+            catch (NotFoundException ex)
             {
-                return NotFound(new
-                {
-                    message = ex.Message
-                });
+                return NotFound(new ApiMessageResponse(ex.Message));
             }
-            catch (InvalidOperationException ex)
+            catch (BusinessException ex)
             {
-                return BadRequest(new
-                {
-                    message = ex.Message
-                });
+                return BadRequest(new ApiMessageResponse(ex.Message));
             }
         }
 
@@ -115,24 +110,15 @@ namespace Web_API.Controllers
             {
                 await _accountService.DeactivateAsync(accountId);
 
-                return Ok(new
-                {
-                    message = "Account has been deactivated."
-                });
+                return Ok(new ApiMessageResponse("Account has been deactivated."));
             }
-            catch (KeyNotFoundException ex)
+            catch (NotFoundException ex)
             {
-                return NotFound(new
-                {
-                    message = ex.Message
-                });
+                return NotFound(new ApiMessageResponse(ex.Message));
             }
-            catch (InvalidOperationException ex)
+            catch (BusinessException ex)
             {
-                return BadRequest(new
-                {
-                    message = ex.Message
-                });
+                return BadRequest(new ApiMessageResponse(ex.Message));
             }
         }
 
@@ -145,17 +131,11 @@ namespace Web_API.Controllers
             {
                 await _accountService.ActivateAsync(accountId);
 
-                return Ok(new
-                {
-                    message = "Account has been activated."
-                });
+                return Ok(new ApiMessageResponse("Account has been activated."));
             }
-            catch (KeyNotFoundException ex)
+            catch (NotFoundException ex)
             {
-                return NotFound(new
-                {
-                    message = ex.Message
-                });
+                return NotFound(new ApiMessageResponse(ex.Message));
             }
         }
 
@@ -173,24 +153,19 @@ namespace Web_API.Controllers
                     currentUser.AccountId,
                     request);
 
-                return Ok(new
-                {
-                    message = "Password has been changed."
-                });
+                return Ok(new ApiMessageResponse("Password has been changed."));
             }
-            catch (UnauthorizedAccessException ex)
+            catch (AuthenticationException ex)
             {
-                return Unauthorized(new
-                {
-                    message = ex.Message
-                });
+                return Unauthorized(new ApiMessageResponse(ex.Message));
             }
-            catch (InvalidOperationException ex)
+            catch (BusinessException ex)
             {
-                return BadRequest(new
-                {
-                    message = ex.Message
-                });
+                return BadRequest(new ApiMessageResponse(ex.Message));
+            }
+            catch (NotFoundException ex)
+            {
+                return NotFound(new ApiMessageResponse(ex.Message));
             }
         }
 
@@ -207,17 +182,11 @@ namespace Web_API.Controllers
                     accountId,
                     request);
 
-                return Ok(new
-                {
-                    message = "Password has been reset."
-                });
+                return Ok(new ApiMessageResponse("Password has been reset."));
             }
-            catch (KeyNotFoundException ex)
+            catch (NotFoundException ex)
             {
-                return NotFound(new
-                {
-                    message = ex.Message
-                });
+                return NotFound(new ApiMessageResponse(ex.Message));
             }
         }
     }

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using AutoMapper;
 using BusinessObjects.Enums;
 using BusinessObjects.Models;
 using Repositories.Interfaces;
@@ -16,6 +17,7 @@ namespace Services.Implementations
         private readonly IKitchenRepository _kitchenRepository;
         private readonly ICurrentUserService _currentUserService;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
 
         public ScheduleService(
             IScheduleRepository scheduleRepository,
@@ -23,7 +25,8 @@ namespace Services.Implementations
             ISystemAccountRepository accountRepository,
             IKitchenRepository kitchenRepository,
             ICurrentUserService currentUserService,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IMapper mapper)
         {
             _scheduleRepository = scheduleRepository;
             _scheduleLogRepository = scheduleLogRepository;
@@ -31,19 +34,20 @@ namespace Services.Implementations
             _kitchenRepository = kitchenRepository;
             _currentUserService = currentUserService;
             _unitOfWork = unitOfWork;
+            _mapper = mapper;
         }
 
         public async Task<List<ScheduleResponse>> GetByKitchenIdAsync(int kitchenId)
         {
             var schedules = await _scheduleRepository.GetByKitchenIdAsync(kitchenId);
-            return schedules.Select(MapToResponse).ToList();
+            return _mapper.Map<List<ScheduleResponse>>(schedules);
         }
 
         public async Task<List<ScheduleResponse>> GetMySchedulesAsync()
         {
             var currentUser = _currentUserService.GetCurrentUser();
             var schedules = await _scheduleRepository.GetByStaffAccountIdAsync(currentUser.AccountId);
-            return schedules.Select(MapToResponse).ToList();
+            return _mapper.Map<List<ScheduleResponse>>(schedules);
         }
 
         public async Task<ScheduleResponse> CreateAsync(CreateScheduleRequest request)
@@ -80,23 +84,17 @@ namespace Services.Implementations
                     $"Nhân viên {staff.FullName} đã có ca {request.ShiftType} "
                     + $"vào ngày {request.WorkDate:dd/MM/yyyy}.");
 
-            var schedule = new Schedule
-            {
-                KitchenId = kitchenId.Value,
-                StaffAccountId = request.StaffAccountId,
-                WorkDate = request.WorkDate,
-                ShiftType = request.ShiftType,
-                Note = request.Note,
-                CreatedByAccountId = currentUser.AccountId,
-                CreatedAt = DateTime.UtcNow
-            };
+            var schedule = _mapper.Map<Schedule>(request);
+            schedule.KitchenId = kitchenId.Value;
+            schedule.CreatedByAccountId = currentUser.AccountId;
+            schedule.CreatedAt = DateTime.UtcNow;
 
             await _scheduleRepository.AddAsync(schedule);
             await _unitOfWork.SaveChangesAsync();
 
             await LogAsync(schedule.ScheduleId, "Created", null, schedule, currentUser.AccountId);
 
-            return MapToResponse(schedule);
+            return _mapper.Map<ScheduleResponse>(schedule);
         }
 
         public async Task<ScheduleResponse> UpdateAsync(int scheduleId, UpdateScheduleRequest request)
@@ -127,11 +125,9 @@ namespace Services.Implementations
                     $"Nhân viên {schedule.StaffAccount?.FullName ?? "này"} đã có ca {request.ShiftType} "
                     + $"vào ngày {request.WorkDate:dd/MM/yyyy}.");
 
-            var oldData = JsonSerializer.Serialize(MapToResponse(schedule));
+            var oldData = JsonSerializer.Serialize(_mapper.Map<ScheduleResponse>(schedule));
 
-            schedule.WorkDate = request.WorkDate;
-            schedule.ShiftType = request.ShiftType;
-            schedule.Note = request.Note;
+            _mapper.Map(request, schedule);
             schedule.UpdatedAt = DateTime.UtcNow;
 
             _scheduleRepository.Update(schedule);
@@ -139,7 +135,7 @@ namespace Services.Implementations
 
             await LogAsync(scheduleId, "Updated", oldData, schedule, currentUser.AccountId);
 
-            return MapToResponse(schedule);
+            return _mapper.Map<ScheduleResponse>(schedule);
         }
 
         public async Task DeleteAsync(int scheduleId)
@@ -156,7 +152,7 @@ namespace Services.Implementations
             if (currentUser.Role == AccountRole.BranchManager && schedule.KitchenId != currentUser.KitchenId)
                 throw new ForbiddenException("You cannot delete schedules from another kitchen.");
 
-            var oldData = JsonSerializer.Serialize(MapToResponse(schedule));
+            var oldData = JsonSerializer.Serialize(_mapper.Map<ScheduleResponse>(schedule));
 
             // Ghi log trước khi xóa để đảm bảo audit trail luôn được lưu
             await LogAsync(scheduleId, "Deleted", oldData, null, currentUser.AccountId);
@@ -168,17 +164,7 @@ namespace Services.Implementations
         public async Task<List<ScheduleLogResponse>> GetLogsAsync()
         {
             var logs = await _scheduleLogRepository.GetAllAsync();
-            return logs.Select(l => new ScheduleLogResponse
-            {
-                ScheduleLogId = l.ScheduleLogId,
-                ScheduleId = l.ScheduleId,
-                Action = l.Action,
-                OldData = l.OldData,
-                NewData = l.NewData,
-                PerformedByAccountId = l.PerformedByAccountId,
-                PerformedByName = l.PerformedByAccount?.FullName ?? "Unknown",
-                PerformedAt = l.PerformedAt
-            }).ToList();
+            return _mapper.Map<List<ScheduleLogResponse>>(logs);
         }
 
         public async Task<ScheduleLogDetailResponse?> GetLogDetailAsync(int logId)
@@ -260,31 +246,12 @@ namespace Services.Implementations
                 ScheduleId = scheduleId,
                 Action = action,
                 OldData = oldData,
-                NewData = newSchedule != null ? JsonSerializer.Serialize(MapToResponse(newSchedule)) : null,
+                NewData = newSchedule != null ? JsonSerializer.Serialize(_mapper.Map<ScheduleResponse>(newSchedule)) : null,
                 PerformedByAccountId = performedBy,
                 PerformedAt = DateTime.UtcNow
             };
             await _scheduleLogRepository.AddAsync(log);
             await _unitOfWork.SaveChangesAsync();
-        }
-
-        private static ScheduleResponse MapToResponse(Schedule s)
-        {
-            return new ScheduleResponse
-            {
-                ScheduleId = s.ScheduleId,
-                KitchenId = s.KitchenId,
-                KitchenName = s.Kitchen?.KitchenName ?? string.Empty,
-                StaffAccountId = s.StaffAccountId,
-                StaffName = s.StaffAccount?.FullName ?? "Unknown",
-                WorkDate = s.WorkDate.ToString("yyyy-MM-dd"),
-                ShiftType = s.ShiftType,
-                Note = s.Note,
-                CreatedByAccountId = s.CreatedByAccountId,
-                CreatedByName = s.CreatedByAccount?.FullName ?? "Unknown",
-                CreatedAt = s.CreatedAt,
-                UpdatedAt = s.UpdatedAt
-            };
         }
     }
 }

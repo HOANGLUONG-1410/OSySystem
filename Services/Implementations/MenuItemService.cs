@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using AutoMapper;
 using BusinessObjects.Models;
 using Repositories.Interfaces;
 using Services.DTOs.MenuItem;
@@ -16,15 +17,18 @@ namespace Services.Implementations
         private readonly IMenuItemRepository _menuItemRepository;
         private readonly IRecipeRepository _recipeRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
 
         public MenuItemService(
             IMenuItemRepository menuItemRepository,
             IRecipeRepository recipeRepository,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IMapper mapper)
         {
             _menuItemRepository = menuItemRepository;
             _recipeRepository = recipeRepository;
             _unitOfWork = unitOfWork;
+            _mapper = mapper;
         }
 
         /// <summary>
@@ -34,9 +38,7 @@ namespace Services.Implementations
         {
             var menuItems = await _menuItemRepository.GetAllAsync();
 
-            return menuItems
-                .Select(MapToResponse)
-                .ToList();
+            return _mapper.Map<List<MenuItemResponse>>(menuItems);
         }
 
         /// <summary>
@@ -54,7 +56,7 @@ namespace Services.Implementations
                     "Menu item does not exist.");
             }
 
-            return MapToResponse(menuItem);
+            return _mapper.Map<MenuItemResponse>(menuItem);
         }
 
         /// <summary>
@@ -79,18 +81,15 @@ namespace Services.Implementations
                     "Menu item name already exists.");
             }
 
-            var menuItem = new MenuItem
-            {
-                MenuItemName = menuItemName,
-                SellingPrice = request.SellingPrice,
-                IsActive = true
-            };
+            var menuItem = _mapper.Map<MenuItem>(request);
+            menuItem.MenuItemName = menuItemName;
+            menuItem.IsActive = true;
 
             await _menuItemRepository.AddAsync(menuItem);
 
             await _unitOfWork.SaveChangesAsync();
 
-            return MapToResponse(menuItem);
+            return _mapper.Map<MenuItemResponse>(menuItem);
         }
 
         /// <summary>
@@ -132,14 +131,14 @@ namespace Services.Implementations
                     "Menu item name already exists.");
             }
 
+            _mapper.Map(request, menuItem);
             menuItem.MenuItemName = newName;
-            menuItem.SellingPrice = request.SellingPrice;
 
             _menuItemRepository.Update(menuItem);
 
             await _unitOfWork.SaveChangesAsync();
 
-            return MapToResponse(menuItem);
+            return _mapper.Map<MenuItemResponse>(menuItem);
         }
 
         /// <summary>
@@ -171,18 +170,6 @@ namespace Services.Implementations
             _menuItemRepository.SoftDelete(menuItem);
 
             await _unitOfWork.SaveChangesAsync();
-        }
-
-        private static MenuItemResponse MapToResponse(
-            MenuItem menuItem)
-        {
-            return new MenuItemResponse
-            {
-                MenuItemId = menuItem.MenuItemId,
-                MenuItemName = menuItem.MenuItemName,
-                SellingPrice = menuItem.SellingPrice,
-                IsActive = menuItem.IsActive
-            };
         }
     }
 }

@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OData.Query;
+using Services.DTOs.Common;
 using Services.DTOs.Schedules;
 using Services.Exceptions;
 using Services.Interfaces;
@@ -31,7 +33,7 @@ namespace Web_API.Controllers
             }
             catch (NotFoundException ex)
             {
-                return NotFound(new { message = ex.Message });
+                return NotFound(new ApiMessageResponse(ex.Message));
             }
         }
 
@@ -54,11 +56,11 @@ namespace Web_API.Controllers
             }
             catch (ForbiddenException ex)
             {
-                return StatusCode(403, new { message = ex.Message });
+                return StatusCode(403, new ApiMessageResponse(ex.Message));
             }
             catch (BusinessException ex)
             {
-                return BadRequest(new { message = ex.Message });
+                return BadRequest(new ApiMessageResponse(ex.Message));
             }
         }
 
@@ -73,15 +75,15 @@ namespace Web_API.Controllers
             }
             catch (NotFoundException ex)
             {
-                return NotFound(new { message = ex.Message });
+                return NotFound(new ApiMessageResponse(ex.Message));
             }
             catch (ForbiddenException ex)
             {
-                return StatusCode(403, new { message = ex.Message });
+                return StatusCode(403, new ApiMessageResponse(ex.Message));
             }
             catch (BusinessException ex)
             {
-                return BadRequest(new { message = ex.Message });
+                return BadRequest(new ApiMessageResponse(ex.Message));
             }
         }
 
@@ -92,18 +94,19 @@ namespace Web_API.Controllers
             try
             {
                 await _scheduleService.DeleteAsync(scheduleId);
-                return Ok(new { message = "Schedule deleted." });
+                return Ok(new ApiMessageResponse("Schedule deleted."));
             }
             catch (NotFoundException ex)
             {
-                return NotFound(new { message = ex.Message });
+                return NotFound(new ApiMessageResponse(ex.Message));
             }
             catch (ForbiddenException ex)
             {
-                return StatusCode(403, new { message = ex.Message });
+                return StatusCode(403, new ApiMessageResponse(ex.Message));
             }
         }
 
+        [EnableQuery]
         [Authorize(Roles = "SystemAdmin")]
         [HttpGet("logs")]
         public async Task<IActionResult> GetLogs()
@@ -118,7 +121,7 @@ namespace Web_API.Controllers
         {
             var result = await _scheduleService.GetLogDetailAsync(logId);
             if (result == null)
-                return NotFound(new { message = "Log does not exist." });
+                return NotFound(new ApiMessageResponse("Log does not exist."));
             return Ok(result);
         }
     }

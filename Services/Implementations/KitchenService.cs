@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using AutoMapper;
 using BusinessObjects.Models;
 using Repositories.Interfaces;
 using Services.DTOs.Kitchens;
@@ -15,13 +16,16 @@ namespace Services.Implementations
     {
         private readonly IKitchenRepository _kitchenRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
 
         public KitchenService(
             IKitchenRepository kitchenRepository,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IMapper mapper)
         {
             _kitchenRepository = kitchenRepository;
             _unitOfWork = unitOfWork;
+            _mapper = mapper;
         }
 
         /// <summary>
@@ -33,9 +37,7 @@ namespace Services.Implementations
             var kitchens = await _kitchenRepository.GetAllAsync();
 
             // Chuyển Entity sang DTO
-            return kitchens
-                .Select(MapToResponse)
-                .ToList();
+            return _mapper.Map<List<KitchenResponse>>(kitchens);
         }
 
         /// <summary>
@@ -53,7 +55,7 @@ namespace Services.Implementations
                     "Kitchen does not exist.");
             }
 
-            return MapToResponse(kitchen);
+            return _mapper.Map<KitchenResponse>(kitchen);
         }
 
         /// <summary>
@@ -93,19 +95,16 @@ namespace Services.Implementations
                 }
             }
 
-            var kitchen = new Kitchen
-            {
-                KitchenName = kitchenName,
-                Address = request.Address?.Trim(),
-                IsCentralKitchen = request.IsCentralKitchen,
-                IsActive = true
-            };
+            var kitchen = _mapper.Map<Kitchen>(request);
+            kitchen.KitchenName = kitchenName;
+            kitchen.Address = request.Address?.Trim();
+            kitchen.IsActive = true;
 
             await _kitchenRepository.AddAsync(kitchen);
 
             await _unitOfWork.SaveChangesAsync();
 
-            return MapToResponse(kitchen);
+            return _mapper.Map<KitchenResponse>(kitchen);
         }
 
         /// <summary>
@@ -148,6 +147,7 @@ namespace Services.Implementations
                     "Kitchen name already exists.");
             }
 
+            _mapper.Map(request, kitchen);
             kitchen.KitchenName = newName;
             kitchen.Address = request.Address?.Trim();
 
@@ -155,7 +155,7 @@ namespace Services.Implementations
 
             await _unitOfWork.SaveChangesAsync();
 
-            return MapToResponse(kitchen);
+            return _mapper.Map<KitchenResponse>(kitchen);
         }
 
         /// <summary>
@@ -188,18 +188,6 @@ namespace Services.Implementations
             _kitchenRepository.SoftDelete(kitchen);
 
             await _unitOfWork.SaveChangesAsync();
-        }
-
-        private static KitchenResponse MapToResponse(Kitchen kitchen)
-        {
-            return new KitchenResponse
-            {
-                KitchenId = kitchen.KitchenId,
-                KitchenName = kitchen.KitchenName,
-                Address = kitchen.Address,
-                IsCentralKitchen = kitchen.IsCentralKitchen,
-                IsActive = kitchen.IsActive
-            };
         }
     }
 }

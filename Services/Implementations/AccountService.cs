@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using AutoMapper;
 using BusinessObjects.Enums;
 using BusinessObjects.Models;
 using Repositories.Interfaces;
@@ -18,15 +19,18 @@ namespace Services.Implementations
         private readonly ISystemAccountRepository _accountRepository;
         private readonly IKitchenRepository _kitchenRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
 
         public AccountService(
             ISystemAccountRepository accountRepository,
             IKitchenRepository kitchenRepository,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IMapper mapper)
         {
             _accountRepository = accountRepository;
             _kitchenRepository = kitchenRepository;
             _unitOfWork = unitOfWork;
+            _mapper = mapper;
         }
 
         /// <summary>
@@ -39,9 +43,7 @@ namespace Services.Implementations
             var accounts = await _accountRepository.GetAllAsync();
 
             // Chuyển Entity sang DTO, không trả PasswordHash
-            return accounts
-                .Select(MapToResponse)
-                .ToList();
+            return _mapper.Map<List<AccountResponse>>(accounts);
         }
 
         /// <summary>
@@ -52,9 +54,7 @@ namespace Services.Implementations
         {
             var accounts = await _accountRepository.GetByKitchenIdAsync(kitchenId);
 
-            return accounts
-                .Select(MapToResponse)
-                .ToList();
+            return _mapper.Map<List<AccountResponse>>(accounts);
         }
 
         /// <summary>
@@ -71,7 +71,7 @@ namespace Services.Implementations
                     "Account does not exist.");
             }
 
-            return MapToResponse(account);
+            return _mapper.Map<AccountResponse>(account);
         }
 
         /// <summary>
@@ -106,7 +106,7 @@ namespace Services.Implementations
             // Lưu thay đổi xuống database
             await _unitOfWork.SaveChangesAsync();
 
-            return MapToResponse(account);
+            return _mapper.Map<AccountResponse>(account);
         }
 
         /// <summary>
@@ -283,22 +283,6 @@ namespace Services.Implementations
                 throw new BusinessException(
                     $"{role} cannot belong to the central kitchen.");
             }
-        }
-
-        private static AccountResponse MapToResponse(
-            SystemAccount account)
-        {
-            return new AccountResponse
-            {
-                AccountId = account.AccountId,
-                Username = account.Username,
-                FullName = account.FullName,
-                Role = account.Role.ToString(),
-                KitchenId = account.KitchenId,
-                KitchenName = account.Kitchen?.KitchenName,
-                IsActive = account.IsActive,
-                CreatedAt = account.CreatedAt
-            };
         }
     }
 }

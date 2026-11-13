@@ -10,6 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Repositories.Implementations;
 using Repositories.Interfaces;
+using Services.DTOs.Common;
 using Services.Implementations;
 using Services.Interfaces;
 using Services.Mappings;
@@ -73,7 +74,7 @@ namespace Web_API
                             : "Dữ liệu không hợp lệ.";
 
                         return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(
-                            new { message });
+                            new ApiMessageResponse(message));
                     };
                 });
 

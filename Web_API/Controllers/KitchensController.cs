@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OData.Query;
+using Services.DTOs.Common;
 using Services.DTOs.Kitchens;
 using Services.Exceptions;
 using Services.Interfaces;
@@ -20,6 +22,7 @@ namespace Web_API.Controllers
 
         // Các tài khoản đã đăng nhập được lấy danh sách Kitchen
         // Dùng cho dropdown hoặc màn hình xem chi nhánh
+        [EnableQuery]
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -41,7 +44,7 @@ namespace Web_API.Controllers
             }
             catch (NotFoundException ex)
             {
-                return NotFound(new { message = ex.Message });
+                return NotFound(new ApiMessageResponse(ex.Message));
             }
         }
 
@@ -63,7 +66,7 @@ namespace Web_API.Controllers
             }
             catch (BusinessException ex)
             {
-                return BadRequest(new { message = ex.Message });
+                return BadRequest(new ApiMessageResponse(ex.Message));
             }
         }
 
@@ -84,11 +87,11 @@ namespace Web_API.Controllers
             }
             catch (NotFoundException ex)
             {
-                return NotFound(new { message = ex.Message });
+                return NotFound(new ApiMessageResponse(ex.Message));
             }
             catch (BusinessException ex)
             {
-                return BadRequest(new { message = ex.Message });
+                return BadRequest(new ApiMessageResponse(ex.Message));
             }
         }
 
@@ -101,18 +104,15 @@ namespace Web_API.Controllers
             {
                 await _kitchenService.DeactivateAsync(kitchenId);
 
-                return Ok(new
-                {
-                    message = "Kitchen has been deactivated."
-                });
+                return Ok(new ApiMessageResponse("Kitchen has been deactivated."));
             }
             catch (NotFoundException ex)
             {
-                return NotFound(new { message = ex.Message });
+                return NotFound(new ApiMessageResponse(ex.Message));
             }
             catch (BusinessException ex)
             {
-                return BadRequest(new { message = ex.Message });
+                return BadRequest(new ApiMessageResponse(ex.Message));
             }
         }
     }

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OData.Query;
+using Services.DTOs.Common;
 using Services.DTOs.Recipes;
 using Services.Exceptions;
 using Services.Interfaces;
@@ -46,7 +47,7 @@ namespace Web_API.Controllers
             }
             catch (NotFoundException ex)
             {
-                return NotFound(new { message = ex.Message });
+                return NotFound(new ApiMessageResponse(ex.Message));
             }
         }
 
@@ -65,7 +66,7 @@ namespace Web_API.Controllers
             }
             catch (NotFoundException ex)
             {
-                return NotFound(new { message = ex.Message });
+                return NotFound(new ApiMessageResponse(ex.Message));
             }
         }
 
@@ -87,7 +88,7 @@ namespace Web_API.Controllers
             }
             catch (BusinessException ex)
             {
-                return BadRequest(new { message = ex.Message });
+                return BadRequest(new ApiMessageResponse(ex.Message));
             }
         }
 
@@ -109,7 +110,7 @@ namespace Web_API.Controllers
             }
             catch (NotFoundException ex)
             {
-                return NotFound(new { message = ex.Message });
+                return NotFound(new ApiMessageResponse(ex.Message));
             }
         }
 
@@ -123,14 +124,11 @@ namespace Web_API.Controllers
             {
                 await _recipeService.DeleteAsync(recipeId);
 
-                return Ok(new
-                {
-                    message = "Recipe has been deleted."
-                });
+                return Ok(new ApiMessageResponse("Recipe has been deleted."));
             }
             catch (NotFoundException ex)
             {
-                return NotFound(new { message = ex.Message });
+                return NotFound(new ApiMessageResponse(ex.Message));
             }
         }
     }

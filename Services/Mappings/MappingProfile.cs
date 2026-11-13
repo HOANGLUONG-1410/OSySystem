@@ -47,6 +47,12 @@ namespace Services.Mappings
                 .ForMember(dest => dest.CreatedByName, opt => opt.MapFrom(src => src.CreatedByAccount != null ? src.CreatedByAccount.FullName : "Unknown"))
                 .ForMember(dest => dest.WorkDate, opt => opt.MapFrom(src => src.WorkDate.ToString("yyyy-MM-dd")))
                 .ForMember(dest => dest.KitchenName, opt => opt.MapFrom(src => src.Kitchen != null ? src.Kitchen.KitchenName : string.Empty));
+            CreateMap<CreateScheduleRequest, Schedule>();
+            CreateMap<UpdateScheduleRequest, Schedule>();
+
+            // ScheduleLog mappings
+            CreateMap<ScheduleLog, ScheduleLogResponse>()
+                .ForMember(dest => dest.PerformedByName, opt => opt.MapFrom(src => src.PerformedByAccount != null ? src.PerformedByAccount.FullName : "Unknown"));
         }
     }
 }

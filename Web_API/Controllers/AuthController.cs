@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Services.DTOs.Auth;
+using Services.DTOs.Common;
 using Services.Exceptions;
 using Services.Interfaces;
 using Web_API.Validators;
@@ -32,7 +33,7 @@ namespace Web_API.Controllers
         {
             var validation = _authValidator.ValidateLogin(request);
             if (!validation.IsValid)
-                return BadRequest(new { message = validation.Message });
+                return BadRequest(new ApiMessageResponse(validation.Message));
 
             try
             {
@@ -41,7 +42,7 @@ namespace Web_API.Controllers
             }
             catch (AuthenticationException ex)
             {
-                return Unauthorized(new { message = ex.Message });
+                return Unauthorized(new ApiMessageResponse(ex.Message));
             }
         }
 
@@ -51,7 +52,7 @@ namespace Web_API.Controllers
         {
             var validation = _authValidator.ValidateCreateAccount(request);
             if (!validation.IsValid)
-                return BadRequest(new { message = validation.Message });
+                return BadRequest(new ApiMessageResponse(validation.Message));
 
             try
             {
@@ -60,18 +61,18 @@ namespace Web_API.Controllers
                 if (currentUser.Role == AccountRole.BranchManager)
                 {
                     if (request.Role != AccountRole.Staff)
-                        return BadRequest(new { message = "Quản lý chi nhánh chỉ được tạo tài khoản nhân viên." });
+                        return BadRequest(new ApiMessageResponse("Quản lý chi nhánh chỉ được tạo tài khoản nhân viên."));
 
                     if (request.KitchenId != currentUser.KitchenId)
-                        return BadRequest(new { message = "Quản lý chi nhánh chỉ được tạo tài khoản trong chi nhánh của mình." });
+                        return BadRequest(new ApiMessageResponse("Quản lý chi nhánh chỉ được tạo tài khoản trong chi nhánh của mình."));
                 }
 
                 var result = await _authService.CreateAccountAsync(request);
                 return CreatedAtAction(nameof(CreateAccount), new { id = result.AccountId }, result);
             }
-            catch (InvalidOperationException ex)
+            catch (BusinessException ex)
             {
-                return BadRequest(new { message = ex.Message });
+                return BadRequest(new ApiMessageResponse(ex.Message));
             }
         }
 
@@ -79,12 +80,12 @@ namespace Web_API.Controllers
         [HttpGet("me")]
         public IActionResult GetCurrentUser()
         {
-            return Ok(new
+            return Ok(new CurrentUserResponse
             {
-                accountId = User.FindFirst("AccountId")?.Value,
-                username = User.Identity?.Name,
-                role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value,
-                kitchenId = User.FindFirst("KitchenId")?.Value
+                AccountId = User.FindFirst("AccountId")?.Value,
+                Username = User.Identity?.Name,
+                Role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value,
+                KitchenId = User.FindFirst("KitchenId")?.Value
             });
         }
     }

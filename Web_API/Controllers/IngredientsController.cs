@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OData.Query;
+using Services.DTOs.Common;
 using Services.DTOs.Ingredient;
 using Services.Exceptions;
 using Services.Interfaces;
@@ -42,7 +43,7 @@ namespace Web_API.Controllers
             }
             catch (NotFoundException ex)
             {
-                return NotFound(new { message = ex.Message });
+                return NotFound(new ApiMessageResponse(ex.Message));
             }
         }
 
@@ -64,7 +65,7 @@ namespace Web_API.Controllers
             }
             catch (BusinessException ex)
             {
-                return BadRequest(new { message = ex.Message });
+                return BadRequest(new ApiMessageResponse(ex.Message));
             }
         }
 
@@ -85,11 +86,11 @@ namespace Web_API.Controllers
             }
             catch (NotFoundException ex)
             {
-                return NotFound(new { message = ex.Message });
+                return NotFound(new ApiMessageResponse(ex.Message));
             }
             catch (BusinessException ex)
             {
-                return BadRequest(new { message = ex.Message });
+                return BadRequest(new ApiMessageResponse(ex.Message));
             }
         }
 
@@ -103,14 +104,11 @@ namespace Web_API.Controllers
                 await _ingredientService
                     .DeactivateAsync(ingredientId);
 
-                return Ok(new
-                {
-                    message = "Ingredient has been deactivated."
-                });
+                return Ok(new ApiMessageResponse("Ingredient has been deactivated."));
             }
             catch (NotFoundException ex)
             {
-                return NotFound(new { message = ex.Message });
+                return NotFound(new ApiMessageResponse(ex.Message));
             }
         }
     }
