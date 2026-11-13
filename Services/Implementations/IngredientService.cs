@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using AutoMapper;
 using BusinessObjects.Models;
 using Repositories.Interfaces;
 using Services.DTOs.Ingredient;
@@ -15,13 +16,16 @@ namespace Services.Implementations
     {
         private readonly IIngredientRepository _ingredientRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper;
 
         public IngredientService(
             IIngredientRepository ingredientRepository,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IMapper mapper)
         {
             _ingredientRepository = ingredientRepository;
             _unitOfWork = unitOfWork;
+            _mapper = mapper;
         }
 
         /// <summary>
@@ -31,9 +35,7 @@ namespace Services.Implementations
         {
             var ingredients = await _ingredientRepository.GetAllAsync();
 
-            return ingredients
-                .Select(MapToResponse)
-                .ToList();
+            return _mapper.Map<List<IngredientResponse>>(ingredients);
         }
 
         /// <summary>
@@ -51,7 +53,7 @@ namespace Services.Implementations
                     "Ingredient does not exist.");
             }
 
-            return MapToResponse(ingredient);
+            return _mapper.Map<IngredientResponse>(ingredient);
         }
 
         /// <summary>
@@ -78,19 +80,16 @@ namespace Services.Implementations
                     "Ingredient name already exists.");
             }
 
-            var ingredient = new Ingredient
-            {
-                IngredientName = ingredientName,
-                Unit = unit,
-                AverageCost = request.AverageCost,
-                IsActive = true
-            };
+            var ingredient = _mapper.Map<Ingredient>(request);
+            ingredient.IngredientName = ingredientName;
+            ingredient.Unit = unit;
+            ingredient.IsActive = true;
 
             await _ingredientRepository.AddAsync(ingredient);
 
             await _unitOfWork.SaveChangesAsync();
 
-            return MapToResponse(ingredient);
+            return _mapper.Map<IngredientResponse>(ingredient);
         }
 
         /// <summary>
@@ -132,15 +131,15 @@ namespace Services.Implementations
                     "Ingredient name already exists.");
             }
 
+            _mapper.Map(request, ingredient);
             ingredient.IngredientName = newName;
             ingredient.Unit = request.Unit.Trim();
-            ingredient.AverageCost = request.AverageCost;
 
             _ingredientRepository.Update(ingredient);
 
             await _unitOfWork.SaveChangesAsync();
 
-            return MapToResponse(ingredient);
+            return _mapper.Map<IngredientResponse>(ingredient);
         }
 
         /// <summary>

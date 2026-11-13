@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OData.Query;
 using Services.DTOs.MenuItem;
 using Services.Exceptions;
 using Services.Interfaces;
@@ -20,6 +21,7 @@ namespace Web_API.Controllers
         }
 
         // Tất cả tài khoản đăng nhập được xem menu
+        [EnableQuery]
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {

@@ -9,18 +9,51 @@ const OsyApi = {
             headers.Authorization = `Bearer ${token}`;
         }
 
-        let body = options.body;
-        if (body !== undefined && body !== null && !(body instanceof FormData)) {
-            headers['Content-Type'] = 'application/json';
-            body = JSON.stringify(body);
+        let data = options.body;
+        let contentType = undefined;
+        if (data !== undefined && data !== null && !(data instanceof FormData)) {
+            contentType = 'application/json; charset=utf-8';
+            data = JSON.stringify(data);
         }
 
         OsyUi.loading(true);
         try {
+            // Sử dụng jQuery AJAX theo tiêu chí đồ án PRN232
+            if (window.$ && window.$.ajax) {
+                return await new Promise((resolve, reject) => {
+                    $.ajax({
+                        url: `${this.baseUrl}${path}`,
+                        type: options.method || 'GET',
+                        headers: headers,
+                        data: data,
+                        contentType: contentType !== undefined ? contentType : (data instanceof FormData ? false : undefined),
+                        processData: !(data instanceof FormData),
+                        success: function (payload) {
+                            resolve(payload);
+                        },
+                        error: function (xhr) {
+                            if (xhr.status === 401 && !options.anonymous) {
+                                OsyAuth.logout(false);
+                            }
+                            let payload = xhr.responseJSON;
+                            if (!payload && xhr.responseText) {
+                                try { payload = JSON.parse(xhr.responseText); } catch { payload = xhr.responseText; }
+                            }
+                            const message = payload?.message || payload?.title || (typeof payload === 'string' ? payload : `HTTP ${xhr.status}`);
+                            const error = new Error(message);
+                            error.status = xhr.status;
+                            error.payload = payload;
+                            reject(error);
+                        }
+                    });
+                });
+            }
+
+            // Fallback sang Fetch API
             const response = await fetch(`${this.baseUrl}${path}`, {
                 method: options.method || 'GET',
                 headers,
-                body
+                body: data
             });
 
             const text = await response.text();

@@ -4,6 +4,7 @@ using BusinessObjects.Data;
 using DataAccessObjects;
 using DataAccessObjects.DAOs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.OData;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -11,6 +12,7 @@ using Repositories.Implementations;
 using Repositories.Interfaces;
 using Services.Implementations;
 using Services.Interfaces;
+using Services.Mappings;
 using Services.SettingsJWT;
 using Web_API.Services;
 using Web_API.Middlewares;
@@ -35,7 +37,20 @@ namespace Web_API
              */
             builder.Services.AddScoped<Web_API.Validators.AuthValidator>();
 
-            builder.Services.AddControllers()
+            // [YÊU CẦU: CONTENT NEGOTIATION & MEDIA FORMATTER]
+            // - RespectBrowserAcceptHeader: server phản hồi theo header Accept (json hoặc xml)
+            // - AddXmlSerializerFormatters: đăng ký Media Formatter hỗ trợ serialization XML
+            // [YÊU CẦU: THƯ VIỆN ODATA]
+            // - AddOData: kích hoạt các toán tử lọc và phân trang nâng cao
+            builder.Services.AddControllers(options =>
+            {
+                options.RespectBrowserAcceptHeader = true;
+            })
+                .AddOData(options =>
+                {
+                    options.Select().Filter().OrderBy().Expand().Count().SetMaxTop(100);
+                })
+                .AddXmlSerializerFormatters()
                 .AddJsonOptions(options =>
                 {
                     options.JsonSerializerOptions.Converters.Add(
@@ -438,6 +453,10 @@ namespace Web_API
                 ICurrentUserService,
                 CurrentUserService>();
 
+            // [YÊU CẦU: THƯ VIỆN AUTOMAPPER]
+            // Tự động quét và đăng ký tất cả Profile ánh xạ (Entity <-> DTO) trong assembly Services
+            builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
+
             // =========================================================
             // 10. CẤU HÌNH SWAGGER VỚI JWT
             // =========================================================
@@ -567,14 +586,19 @@ namespace Web_API
             app.MapControllers();
 
             // =========================================================
-            // 13. DATABASE SEEDER
+            // 13. DATABASE MIGRATION & SEEDER
             // =========================================================
 
             /*
-             * Tạo tài khoản SystemAdmin mặc định nếu database chưa có.
-             *
-             * Bỏ comment khi đã tạo DatabaseSeeder.
+             * Tự động áp dụng Migration (tạo Database nếu chưa có)
+             * và tạo tài khoản SystemAdmin mặc định.
              */
+            using (var scope = app.Services.CreateScope())
+            {
+                var dbContext = scope.ServiceProvider.GetRequiredService<BunBoDbContext>();
+                await dbContext.Database.MigrateAsync();
+            }
+
             await DatabaseSeeder.DatabaseSeeder.SeedAdminAsync(app.Services);
 
             /*

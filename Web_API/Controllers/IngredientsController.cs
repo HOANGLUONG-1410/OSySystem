@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OData.Query;
 using Services.DTOs.Ingredient;
 using Services.Exceptions;
 using Services.Interfaces;
@@ -20,6 +21,7 @@ namespace Web_API.Controllers
         }
 
         // Tất cả role đã đăng nhập được xem danh sách nguyên liệu
+        [EnableQuery]
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
